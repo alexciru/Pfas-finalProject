@@ -2,9 +2,36 @@ Pfas-finalProject
 ==============================
 
 final project of pfas
-
-Project Organization
 ------------
+Install dependecies
+`pip install requirements.txt` NOT UPDATED YET
+
+Download Data:  
+`dvc pull`
+Might require log in to the Google Account - if dont work ask Alex to check account auths  
+
+
+
+------------  
+1. Seq_1:   blablabla
+2. Seq_2:
+3. Seq_3: bla blabla
+
+Calibration are squares of arround 10 cm
+------------  
+Goals:
+
+- Calibrate and rectify the stereo input.
+- Process the input images to detect objects in the environment and track them in 3D,
+even under occlusions.
+- Train a machine learning system that can classify unseen images into the 3 classes
+(pedestrians, cyclists, and cars) based either on 2D or 3D data.
+o Use the web or/and capture your own images to create your training set. The
+image sequences 1 and 2 provided with the project will constitute your
+validation set and the sequence 3 your testing set
+Project Organization  
+------------
+File structure
 
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
