@@ -4,10 +4,10 @@ Pfas-finalProject
 final project of pfas
 ------------
 Install dependecies
-`pip install requirements.txt` NOT UPDATED YET
+`pip install requirements.txt`   NOT UPDATED YET
 
 Download Data:  
-`dvc pull`
+`dvc pull`  
 Might require log in to the Google Account - if dont work ask Alex to check account auths  
 
 
