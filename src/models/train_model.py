@@ -1,60 +1,125 @@
-from pycocotools.coco import COCO
-import random
-from PIL import Image
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-# load local anotation file with realtive path
-# get local path
 
-categories = ['person', 'car', 'bicycle']
-
-
-dataDir= r".\data\external\coco-2017"
-dataType= r"val2017"
-annFile= "{}\\raw\\instances_{}.json".format(dataDir,dataType)
-annFile= "{}\\train\\labels.json".format(dataDir)
-coco=COCO(annFile)
+#%%
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+from matplotlib import pyplot as plt
+from torch import nn, optim
+import torchvision.transforms as transforms
+import torchvision
+from CocoDataset import CocoDataset
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+import yaml
 
 
-# Get list of category_ids, here [2] for bicycle
-category_ids = coco.getCatIds(categories)
-print(category_ids)
-
-# Get list of image_ids which contain some/all of the category_ids
-image_ids = coco.getImgIds(catIds=category_ids)
-image_id = random.choice(image_ids)
-print("Image Id: ", image_id)
-# get the anotation from the image
-annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[1])
+#Not working yet
 
 
-# get bounding boxes
-anns = coco.loadAnns(annotation_ids)
+def main():
+    # load yolov5s
+    model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=False)
 
-
-# Get list of image_ids which contain bicycles
-#image_ids = coco.getImgIds(catIds=[1])
-#print(len(image_ids))
-# Get annotation based on the category and imag
-
-annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=[1, 2, 3])
-print("anotations")
-print(annotation_ids)
-anns = coco.loadAnns(annotation_ids)
-
-# load img
-images_path = "./data/external/coco-2017/train/data/"
-image_name = str(image_id).zfill(12)+".jpg" # Image names are 12 characters long
-image = Image.open(images_path+image_name)
+    # model = get_model_instance_segmentation(3)
+    
+    print("Loading dataset...")
+    dataset = CocoDataset(root = "data/external/myCoco/train/data/",
+                        annotation = "data/external/myCoco/train/labels.json",
+                        transforms = transforms.ToTensor())
  
-fig, ax = plt.subplots()
- 
-# Draw boxes and add label to each box
-for ann in anns:
-    box = ann['bbox']
-    bb = patches.Rectangle((box[0],box[1]), box[2],box[3], linewidth=1, edgecolor="blue", facecolor="none")
-    ax.add_patch(bb)
- 
-# show
-ax.imshow(image)
-plt.show()
+
+  
+    classes = [ 'bicyle',
+                'person',
+                'car']
+
+    data = dict(
+        train =  'data/external/Yolov5/train/',
+        val   =  'data/external/Yolov5/valid/',
+        nc    =  3,
+        names = classes
+        )
+
+    with open('./yolov5/vinbigdata.yaml', 'w') as outfile:
+        yaml.dump(data, outfile, default_flow_style=False)
+        
+    f = open('./yolov5/data.yaml', 'r')
+    print('\nyaml:')
+    print(f.read())
+
+
+
+    # data loader
+    batch_size = 1
+    num_workers = 1
+
+    trainloader = torch.utils.data.DataLoader(dataset,
+                                            batch_size=batch_size,
+                                            shuffle=False
+                                            )
+
+    # test forward pass
+    #model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
+    
+    
+    n_epochs = 10
+    batch_size = 1
+    learning_rate = 0.001
+
+    criterion = nn.NLLLoss()
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+
+    steps = 0
+    losses = []
+    
+    for epoch in range(n_epochs):
+        model.train()
+        running_loss = 0
+        for images, annotation in trainloader:
+            print(annotation.keys())
+
+            #img = transforms.ToPILImage()(images[0])
+            optimizer.zero_grad()
+
+            output = model(images, annotation)
+
+            loss = criterion(output, annotation)
+            loss.backward()
+
+            optimizer.step()
+            running_loss += loss.item()
+
+        else:
+            losses.append(running_loss/len(trainloader))
+            steps += 1
+            print(f"Training loss: {running_loss/len(trainloader)}")
+
+    steps = [i for i in range(steps)]
+
+    # Use the plot function to draw a line plot
+    plt.plot(steps, losses)
+
+    # Add a title and axis labels
+    plt.title("Training Loss vs Training Steps")
+    plt.xlabel("Training Steps")
+    plt.ylabel("Training Loss")
+
+    # Save the plot
+    plt.savefig("reports/figures/lossV1.png")
+
+    torch.save(model.state_dict(), 'models/trained_modelV1.pt')
+
+
+
+def get_model_instance_segmentation(num_classes):
+    # load an instance segmentation model pre-trained pre-trained on COCO
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model
+
+
+
+if __name__ == '__main__':
+    main()

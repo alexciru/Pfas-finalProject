@@ -26,9 +26,28 @@ requirements: test_environment
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 
 ## Make Dataset
-data: requirements
+generate_data: requirements
 	$(PYTHON_INTERPRETER) src/data/make_dataset.py data/raw data/processed
 
+
+
+TRAIN_DATA_DIR='../data/external/coco-2017/train/data/'
+TRAIN_ANNOTATION_FILE_DIR='../data/external/coco-2017/train/info.json'
+OUTPUT_TFRECORD_TRAIN='../data/processed/valid'
+
+# Need to provide
+  # 1. image_dir: where images are present
+  # 2. object_annotations_file: where annotations are listed in json format
+  # 3. output_file_prefix: where to write output convered TFRecords files
+convert_data: 
+	python -m src/data/create_coco_tf_record --logtostderr \
+  		--image_dir=${TRAIN_DATA_DIR} \
+  		--object_annotations_file=${TRAIN_ANNOTATION_FILE_DIR} \
+  		--output_file_prefix=$OUTPUT_TFRECORD_TRAIN \
+  		--num_shards=1
+
+
+	python3 src/data/create_coco_tf_record.py --logtostderr --image_dir= "data/external/coco-2017/train/data/" --object_annotations_file= "data/external/coco-2017/train/info.json" --output_file_prefix="data/processed/valid" --num_shards=1
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
