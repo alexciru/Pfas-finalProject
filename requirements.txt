@@ -290,3 +290,5 @@ xmltodict==0.13.0
 yarl==1.8.2
 zc.lockfile==3.0.post1
 zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1674910338934/work
+ultralytics
+onnxruntime
