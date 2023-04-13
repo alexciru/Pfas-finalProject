@@ -15,6 +15,9 @@ python==3.10.9
 
 Currently for mac (see requirements.txt). For non-macs, remove "macos" in tensorflow-mac and delete tensorflow-metal.
 
+## Docs
+Yolov8: https://docs.ultralytics.com/
+
 ## Mac M1/M2 setup
 * have to get tensorflow-macos set up by following: https://developer.apple.com/metal/tensorflow-plugin/
 * really make sure to run the step `source ~/miniconda/bin/activate` and keep it activated
