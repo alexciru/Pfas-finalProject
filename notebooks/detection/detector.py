@@ -6,25 +6,23 @@ import sys
 import os
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # root directory.
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # Add ROOT to PATH.
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # Relative.
+# ROOT is the Pfas-finalProject git repo
+# TODO (elle): find better way to get top-level directory
+local_parent = FILE.parents[0]
+ROOT = local_parent.parents[0].parents[0]  # root directory.
 
 # Load the YOLOv8 model
-model = YOLO(ROOT / "runs/detect/train2/weights/best.onnx")
+model_path = local_parent / "runs/detect/train/weights/best.onnx"
+model = YOLO(model_path)
+print(f"Loaded model from {model_path}")
 
-# Open the video file
-# video_path = "seq_01/image_02/data/0000000000.png"
-# cap = cv2.VideoCapture(video_path)
-# glob_path = "seq_02/image_02/data/*.png"
-glob_path = "seq_01/image_02/data/0000000000.png"
+glob_path = os.path.join(ROOT, "src/data/validation/seq_01/image_02/data/*.png")
+
 frame_paths = sorted(glob.glob(glob_path))
-# Loop through the video frames
-# while cap.isOpened():
+if not frame_paths:
+    raise ValueError(f"No frames found at {glob_path}")
+
 for frame_path in frame_paths:
-    # Read a frame from the video
-    # success, frame = cap.read()
     frame = cv2.imread(frame_path)
     success = frame is not None
     if success:

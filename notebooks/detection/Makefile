@@ -1,5 +1,5 @@
 train:
-	python3 detector_train.py
+	python3 detector_trainer.py
 
 run:
 	python3 detector.py
