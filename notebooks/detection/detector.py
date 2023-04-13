@@ -1,20 +1,25 @@
 import cv2
 from ultralytics import YOLO
 import glob
+from pathlib import Path
+import sys
+import os
+
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[0]  # root directory.
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # Add ROOT to PATH.
+ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # Relative.
 
 # Load the YOLOv8 model
-model = YOLO(
-    "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/runs/detect/train2/weights/best.onnx"
-)
+model = YOLO(ROOT / "runs/detect/train2/weights/best.onnx")
 
 # Open the video file
-# video_path = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/seq_01/image_02/data/0000000000.png"
+# video_path = "seq_01/image_02/data/0000000000.png"
 # cap = cv2.VideoCapture(video_path)
-frame_paths = sorted(
-    glob.glob(
-        "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/seq_01/image_02/data/*.png"
-    )
-)
+# glob_path = "seq_02/image_02/data/*.png"
+glob_path = "seq_01/image_02/data/0000000000.png"
+frame_paths = sorted(glob.glob(glob_path))
 # Loop through the video frames
 # while cap.isOpened():
 for frame_path in frame_paths:
