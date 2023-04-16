@@ -1,10 +1,10 @@
 ###############################################
-#              WIN VERSION
-#     should work for ubuntu asweel
+#              MAC_OS VERSION
 ###############################################
 ultralytics==8.0.75
 onnxruntime==1.14.1
-tensorflow==2.9
+tensorflow-macos==2.9
+tensorflow-metal==0.5.0
 open3d==0.17.0
 dvc==2.54.0
 dvc-gdrive==2.19.1
