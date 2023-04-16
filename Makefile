@@ -19,6 +19,14 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
+help: 
+	@echo "Commands: "
+	@echo "requirements -- install requirements"
+	@echo "generate_data -- generate_data"
+	@echo "convert_data -- convert data into TFRecords "
+	@echo "clean -- remove compiled files"
+	@echo "lint -- autoformat code"
+
 
 ## Install Python Dependencies
 requirements: test_environment
