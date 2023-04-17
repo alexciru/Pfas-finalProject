@@ -35,7 +35,7 @@ results = model.train(
 results = model.val()
 
 # Perform object detection on an image using the model
-results = model("https://ultralytics.com/images/bus.jpg")
+results = model(root_path + "data\video\seq_01\image_02\data\0000000000.png")
 
 # Export the model to ONNX format
 print("Exporting model to ONNX format...")
