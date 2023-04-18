@@ -7,8 +7,6 @@ __pycache__/
 
 # exclude data from source control
 data/
-notebooks/detection/datasets
-notebooks/detection/runs
 
 
 # Mac OS-specific storage files
