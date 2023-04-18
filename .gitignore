@@ -1,14 +1,21 @@
+
+# Byte-compiled 
+__pycache__/
+*.py
+
+# enviroment variables
+.env
 # VS Code
 .vscode/
+
+# exclude data from source control
+data/
+
+
 
 # python
 __pycache__
 
-# Jupyter NB Checkpoints
-.ipynb_checkpoints/
-
-# exclude data from source control by default
-data/ground_truth/
-!data/gt_plotting.ipynb
-
+# Mac OS-specific storage files
+.DS_Store
 
