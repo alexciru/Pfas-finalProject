@@ -1,13 +1,20 @@
+
 # Byte-compiled 
 __pycache__/
 *.py
 
 # enviroment variables
 .env
+# VS Code
+.vscode/
 
 # exclude data from source control
 data/
 
+
+
+# python
+__pycache__
 
 # Mac OS-specific storage files
 .DS_Store
