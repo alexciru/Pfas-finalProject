@@ -8,7 +8,5 @@ __pycache__
 .ipynb_checkpoints/
 
 # exclude data from source control by default
-data/ground_truth/
-!data/gt_plotting.ipynb
-
+data/
 
