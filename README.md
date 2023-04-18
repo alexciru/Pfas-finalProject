@@ -4,11 +4,21 @@ Pfas-finalProject
 final project of pfas
 ------------
 Install dependecies:  
-`pip install requirements.txt`   NOT UPDATED YET
+`pip install requirements.txt` or `pip install requirements_mac.txt` for macOS
+
 
 Download Data from DVC:  
-`dvc pull`  
-Might require log in to the Google Account - if dont work ask Alex to check account auths  
+
+`dvc pull data` - Will download all the data (both video seq and dataset)
+if wanted to download only the video sequence execute    
+`dvc pull data/video`
+Might require log in to the Google Account  
+
+In order to upload new data files into the cloud execute commands:
+`dvc add data/`
+`dvc push`
+
+this will update the .dvc file REMEMBER TO PUSH THE NEW .DVC FILE INTO GIT AFTER PUSIING DATA !!!
 
 -------
 ## Dataset   

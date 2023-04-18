@@ -13,7 +13,8 @@ Currently data path is hardcoded in detector.py, so will need to manually update
 ## Requirements
 python==3.10.9
 
-Currently for mac (see requirements.txt). For non-macs, remove "macos" in tensorflow-mac and delete tensorflow-metal.
+see requirements.txt.
+For macs see requirements_mac.txt  
 
 ## Docs
 Yolov8: https://docs.ultralytics.com/
