@@ -1,6 +1,3 @@
-import argparse
-import os
-import sys
 from pathlib import Path
 
 from ultralytics import YOLO
@@ -75,13 +72,15 @@ def get_class_data(coords2classdata, bbox):
     return class_data
 
 
-def execute(data_glob=None, model=None):
+def execute(data_glob=None, model=None, save_path=None, disp=True):
     # deepsort
     # TODO (elle): how to tune params?
     max_cosine_distance = 0.4
     nn_budget = None
     model_filename = local_parent / "networks/mars-small128.pb"
     model = ROOT / model
+    if save_path:
+        save_path = local_parent / f"results/{save_path}"
 
     encoder = gdet.create_box_encoder(model_filename, batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric(
@@ -186,7 +185,8 @@ def execute(data_glob=None, model=None):
         78: "hair drier",
         79: "toothbrush",
     }
-
+    all_results = []
+    unknown_default = "?"
     for frame_idx, path in enumerate(frame_paths):
         frame = cv2.imread(path)
         if frame is None:
@@ -241,29 +241,56 @@ def execute(data_glob=None, model=None):
             class_data = get_class_data(coords2classdata, bbox)
             cls, conf = class_data
             # TODO (elle): calculate actual x,y,z values instead of hardcoding -1's
+            # format matches labels.txt
             data = {
                 "frame_idx": frame_idx,
                 "id": track.track_id,
+                "type": cls,
+                "truncated": unknown_default,
+                "occluded": unknown_default,
+                "alpha": unknown_default,
                 "x1": int(bbox[0]),
                 "y1": int(bbox[1]),
                 "x2": int(bbox[2]),
                 "y2": int(bbox[3]),
-                "3Dx": -1,
-                "3Dy": -1,
-                "3Dz": -1,
-                "class": cls,
-                "conf": conf,
+                "3Dw": unknown_default,
+                "3Dh": unknown_default,
+                "3Dl": unknown_default,
+                "3Dx": unknown_default,
+                "3Dy": unknown_default,
+                "3Dz": unknown_default,
+                "ry": unknown_default,
+                "score": conf,
             }
-            print(f"cls: {cls}, box: {bbox}")
-            frame = disp_track(frame, data)
-
-        cv2.imshow("YOLOv8 Inference", frame)
-        # break the loop if 'q' is pressed
-        if cv2.waitKey(0) & 0xFF == ord("q"):
-            break
+            all_results.append(data)
+            print(f"frame: {frame_idx}, cls: {cls}, box: {bbox}")
+            if disp:
+                frame = disp_track(frame, data)
+        if disp:
+            cv2.imshow("YOLOv8 Inference", frame)
+            # break the loop if 'q' is pressed
+            if cv2.waitKey(0) & 0xFF == ord("q"):
+                break
+    if save_path:
+        with open(save_path, "w") as f:
+            for data in all_results:
+                template = "{frame_idx},{id},{type},{truncated},{occluded},{alpha},{x1},{y1},{x2},{y2},{3Dw},{3Dh},{3Dl},{3Dx},{3Dy},{3Dz},{ry},{score}"
+                data_fmt = template.format(**data)
+                f.write(f"{data_fmt}\n")
 
 
 if __name__ == "__main__":
-    data_glob = "data/video/seq_01/image_02/data/*.png"
+    seq = "seq_02"
+    subseq = "image_03"
+    full_seq = f"{seq}/{subseq}"
+    data_glob = f"data/video/{full_seq}/data/*.png"
+    save_path = f"track_{seq}_{subseq}.txt"
     model = "models/yolov8n.pt"
-    execute(data_glob=data_glob, model=model)
+    disp = False
+    params = {
+        "data_glob": data_glob,
+        "save_path": save_path,
+        "model": model,
+        "disp": disp,
+    }
+    execute(**params)
