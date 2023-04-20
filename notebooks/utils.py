@@ -39,5 +39,14 @@ def get_labels_df(seq_dir_):
     _labels_file = str(seq_dir_ / "labels.txt")
     headers = ['frame', 'track_id', 'type', 'truncated', 'occluded', 'alpha', 'bbox_left', 'bbox_top', 'bbox_right', 'bbox_bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'yaw']
     return pd.read_csv(_labels_file, sep=' ', header=None, names=headers)
+
+
+def draw_bboxes(frame_, bbox_coords_):
+    print("REMEMBER: bboxes are with respect to the left frame")
+    _frame = frame_.copy()
+    for bbox in bbox_coords_:
+        cv.rectangle(_frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (255, 0, 0), 2)
+    return _frame
+
 if __name__ == '__main__':
     pass
