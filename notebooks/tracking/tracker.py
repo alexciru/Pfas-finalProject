@@ -284,9 +284,10 @@ if __name__ == "__main__":
     subseq = "image_03"
     full_seq = f"{seq}/{subseq}"
     data_glob = f"data/video/{full_seq}/data/*.png"
-    save_path = f"track_{seq}_{subseq}.txt"
+    # save_path = f"track_{seq}_{subseq}.txt"
+    save_path = None
     model = "models/yolov8n.pt"
-    disp = False
+    disp = True
     params = {
         "data_glob": data_glob,
         "save_path": save_path,
