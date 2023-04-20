@@ -4,3 +4,4 @@ tensorflow-macos==2.9
 tensorflow-metal==0.5.0
 dvc==2.54.0
 dvc-gdrive==2.19.1
+numpy==1.23.5

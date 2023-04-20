@@ -11,7 +11,7 @@ Use Makefile to run things if you want
 Currently data path is hardcoded in detector.py, so will need to manually update.
 
 ## Requirements
-python==3.10.9
+python==3.10.9 (`pyenv local 3.10.9`)
 
 see requirements.txt.
 For macs see requirements_mac.txt  
