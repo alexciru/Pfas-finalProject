@@ -16,6 +16,12 @@ else
 HAS_CONDA=True
 endif
 
+detect:
+	python3 notebooks/detection/detector.py
+
+track:
+	python3 notebooks/tracking/tracker.py
+
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################

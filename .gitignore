@@ -1,7 +1,6 @@
 
 # Byte-compiled 
 __pycache__/
-*.py
 
 # enviroment variables
 .env
