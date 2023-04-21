@@ -22,7 +22,7 @@ import glob
 def disp_track(frame, data):
     frame = frame.copy()
     # TODO (elle): change color of bbox based on track id
-    label = f"{data['id']}:{data['class'][:3]}"
+    label = f"{data['id']}:{data['type'][:3]}"
     # baseline is line where letters sit
     font_scale = 0.5
     font_thickness = 1
