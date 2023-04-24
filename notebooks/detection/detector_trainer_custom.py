@@ -2,7 +2,7 @@ from ultralytics import YOLO
 from pathlib import Path
 import sys
 import os
-
+import matplotlib.pyplot as plt
 
 
 """
@@ -42,6 +42,11 @@ model = YOLO(DATASET_PATH + "weights/best.onnx")
 res = model(root_path + "/data/validation/seq_01/image_02/data/0000000000.png")
 boxes = res[0].boxes
 print(boxes)
+
+
+
+
+
 
 
 
