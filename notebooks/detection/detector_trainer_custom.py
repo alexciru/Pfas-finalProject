@@ -2,6 +2,7 @@ from ultralytics import YOLO
 from pathlib import Path
 import sys
 import os
+import cv2
 
 
 
@@ -37,11 +38,26 @@ print("Exporting model to ONNX format...")
 success = model.export(format="onnx")
 print("Export succeeded?:", success)
 
+img = root_path + "/data/validation/seq_01/image_02/data/0000000000.png"
+
+
 # load saved model -- aka do quick sanity test
 model = YOLO(DATASET_PATH + "weights/best.onnx")
-res = model(root_path + "/data/validation/seq_01/image_02/data/0000000000.png")
+res = model(img)
 boxes = res[0].boxes
 print(boxes)
+
+
+# draw boxes in the image
+for box in boxes:
+    box = box.xyxy
+    label = box[5]
+    box = box.tolist()[0]
+    cv2.rectangle(img, (int(box[0]), int(box[1])) ,(int(box[2]), int(box[3])), (0, 255, 0), 2)
+    cv2.putText(img, label, (box[0], box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+    cv2.imshow("YOLOv8 Inference", img)
+
+
 
 
 
