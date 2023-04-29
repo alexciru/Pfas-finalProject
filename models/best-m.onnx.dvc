@@ -1,0 +1,4 @@
+outs:
+- md5: b6cea25a57d3878a2315bda2f468d73e
+  size: 103593999
+  path: best-m.onnx
