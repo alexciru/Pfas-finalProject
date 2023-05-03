@@ -2,6 +2,8 @@ from pathlib import Path
 
 from ultralytics import YOLO
 import math
+import pandas as pd
+import numpy as np
 
 FILE = Path(__file__).resolve()
 # ROOT is the Pfas-finalProject git repo
@@ -19,36 +21,45 @@ import glob
 
 
 # writes deepsort tracking id, bounding box, and class to frame
-def disp_track(frame, data):
+def disp_track(frame, data, color=None, label_offset=0, expected=None):
     frame = frame.copy()
     # TODO (elle): change color of bbox based on track id
-    label = f"{data['id']}:{data['type'][:3]}"
+    label = f"{data['track_id']}:{data['type'][:3]}"
+    if expected is not None:
+        label = f"{data['track_id']}/{expected['track_id']}:{data['type'][:3]}/{expected['type']}"
     # baseline is line where letters sit
-    font_scale = 0.5
+    font_scale = 0.3
     font_thickness = 1
     (label_width, label_height), baseline = cv2.getTextSize(
         label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness
     )
-    bbox = [data["x1"], data["y1"], data["x2"], data["y2"]]
+    bbox = [
+        data["bbox_left"],
+        data["bbox_top"],
+        data["bbox_right"],
+        data["bbox_bottom"],
+    ]
     top_left = tuple(
         map(
             int,
-            [int(bbox[0]), int(bbox[1]) - (label_height + baseline)],
+            [int(bbox[0]), int(bbox[1]) - (label_height + baseline + label_offset)],
         )
     )
     top_right = tuple(map(int, [int(bbox[0]) + label_width, int(bbox[1])]))
     org = tuple(map(int, [int(bbox[0]), int(bbox[1]) - baseline]))
-
+    default_color = (255, 0, 0)
     # bounding box
+    bbox_color = default_color if color is None else color
     cv2.rectangle(
         frame,
         (int(bbox[0]), int(bbox[1])),
         (int(bbox[2]), int(bbox[3])),
-        (255, 0, 0),
+        bbox_color,
         1,
     )
     # label
-    cv2.rectangle(frame, top_left, top_right, (255, 0, 0), -1)
+    label_color = default_color if color is None else color
+    cv2.rectangle(frame, top_left, top_right, label_color, -1)
     cv2.putText(
         frame,
         label,
@@ -72,13 +83,44 @@ def get_class_data(coords2classdata, bbox):
     return class_data
 
 
-def execute(data_glob=None, model=None, save_path=None, disp=True):
+def get_labels_df(seq_dir_):
+    """
+    returns the labels (ground truth data) of the given sequence as a pandas dataframe
+    :param seq_dir_: sequence directory (pathlib.Path)
+    :return: labels dataframe (pd.DataFrame)
+    """
+
+    _labels_file = str(ROOT / seq_dir_ / "labels.txt")
+    headers = [
+        "frame",
+        "track_id",
+        "type",
+        "truncated",
+        "occluded",
+        "alpha",
+        "bbox_left",
+        "bbox_top",
+        "bbox_right",
+        "bbox_bottom",
+        "height",
+        "width",
+        "length",
+        "x",
+        "y",
+        "z",
+        "yaw",
+    ]
+    return pd.read_csv(_labels_file, sep=" ", header=None, names=headers)
+
+
+def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=None):
     # deepsort
     # TODO (elle): how to tune params?
-    max_cosine_distance = 0.4
+    max_cosine_distance = 1.0
+    print("MAX COSINE DIST", max_cosine_distance)
     nn_budget = None
     model_filename = local_parent / "networks/mars-small128.pb"
-    model = ROOT / model
+    # model = ROOT / model
     if save_path:
         save_path = local_parent / f"results/{save_path}"
 
@@ -86,7 +128,17 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget
     )
-    tracker = Tracker(metric, n_init=0)
+    max_age = 1000
+    n_init = 1
+    print(
+        f"""
+        max_cos_dist: {max_cosine_distance},
+        nn_budget: {nn_budget},
+        max_age: {max_age},
+        n_init: {n_init}
+    """
+    )
+    tracker = Tracker(metric, max_age=max_age, n_init=n_init)
     detector = YOLO(model)
 
     if data_glob is None:
@@ -98,7 +150,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
     # filter for paths that have number bet 27 and 55:
     for path in frame_paths:
         frame_num = int(path.split("/")[-1].split(".")[0])
-        if frame_num >= 20 and frame_num <= 80:
+        if frame_num >= 25:
             new_frame_paths.append(path)
     frame_paths = new_frame_paths
     if len(frame_paths) == 0:
@@ -194,9 +246,11 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
     }
     all_results = []
     unknown_default = "?"
+    ds_id2gt_id = {}
     for frame_idx, path in enumerate(frame_paths):
         frame_idx = int(path.split("/")[-1].split(".")[0])
         frame = cv2.imread(path)
+        frame_gt = frame.copy()
         if frame is None:
             print(f"image not found at {path}")
             exit(1)
@@ -235,6 +289,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
         tracker.predict()
         tracker.update(detections)
         print()
+        frame_results = []
         # get track info (bounding boxes, etc)
         for track in tracker.tracks:
             # track can be tentative (recently created, needs more evidence aka associations in n_init+1 frames),
@@ -251,30 +306,90 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
             # TODO (elle): calculate actual x,y,z values instead of hardcoding -1's
             # format matches labels.txt
             data = {
-                "frame_idx": frame_idx,
-                "id": track.track_id,
+                "frame": frame_idx,
+                "track_id": track.track_id,
                 "type": cls,
                 "truncated": unknown_default,
                 "occluded": unknown_default,
                 "alpha": unknown_default,
-                "x1": int(bbox[0]),
-                "y1": int(bbox[1]),
-                "x2": int(bbox[2]),
-                "y2": int(bbox[3]),
-                "3Dw": unknown_default,
-                "3Dh": unknown_default,
-                "3Dl": unknown_default,
-                "3Dx": unknown_default,
-                "3Dy": unknown_default,
-                "3Dz": unknown_default,
-                "ry": unknown_default,
+                "bbox_left": int(bbox[0]),
+                "bbox_top": int(bbox[1]),
+                "bbox_right": int(bbox[2]),
+                "bbox_bottom": int(bbox[3]),
+                "height": unknown_default,
+                "width": unknown_default,
+                "length": unknown_default,
+                "x": unknown_default,
+                "y": unknown_default,
+                "z": unknown_default,
+                "yaw": unknown_default,
                 "score": conf,
             }
             all_results.append(data)
-            print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
+            frame_results.append(data)
+            # print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
             if disp:
                 frame = disp_track(frame, data)
+
+        if expected_df is not None:
+            exp_frame = expected_df[expected_df["frame"] == frame_idx]
+            for _, row in exp_frame.iterrows():
+                frame_gt = disp_track(frame_gt, row, color=(0, 255, 0))
+
+        ids_used = set()
+        det_fails = 0
+        for res in frame_results:
+            min_dist = 10000000
+            min_exp = None
+            # find row in expected_df whose bbox center is closest to the current bbox center
+            bbox_center = (
+                res["bbox_left"] + (res["bbox_right"] - res["bbox_left"]) / 2,
+                res["bbox_top"] + (res["bbox_bottom"] - res["bbox_top"]) / 2,
+            )
+            # TODO (elle): make this more efficient than O(n^2)
+            if expected_df is not None:
+                id = res["track_id"]
+                exp_frame = expected_df[expected_df["frame"] == frame_idx]
+                for _, row in exp_frame.iterrows():
+                    exp_bbox_center = (
+                        row["bbox_left"] + (row["bbox_right"] - row["bbox_left"]) / 2,
+                        row["bbox_top"] + (row["bbox_bottom"] - row["bbox_top"]) / 2,
+                    )
+                    err = np.linalg.norm(
+                        np.array(bbox_center) - np.array(exp_bbox_center)
+                    )
+                    if err < min_dist:
+                        min_dist = err
+                        min_exp = row
+                min_id = min_exp["track_id"]
+                if id not in ds_id2gt_id:
+                    ds_id2gt_id[id] = min_id
+                else:
+                    if ds_id2gt_id[id] != min_id:
+                        print(
+                            f"WARNING: track id {id} already mapped to {ds_id2gt_id[id]}, but now mapping to {min_id}"
+                        )
+                        ds_id2gt_id[id] = min_id
+                if min_id in ids_used:
+                    # print(f"WARNING: track id {min_id} already used for this frame")
+                    det_fails += 1
+                else:
+                    ids_used.add(min_id)
+                # template = "{frame}: {track_id},{type},{bbox_left},{bbox_top},{bbox_right},{bbox_bottom}"
+                # res_fmt = template.format(**res)
+                # exp_fmt = template.format(**min_exp)
+                # print("res " + res_fmt)
+                # print("exp " + exp_fmt)
+                mismatch_fmt = f"{res['type']} -> {min_exp['type']} "
+                print(
+                    f"{frame_idx}: {id} -> {min_id}, {mismatch_fmt if res['type'] != min_exp['type'] else ''}with error {min_dist}"
+                )
+        print(f"det_fails: {det_fails}")
+
+        # print(expected_df[expected_df["frame"] == frame_idx])
         if disp:
+            # show frame and frame_gt one on top of the other
+            frame = np.concatenate((frame, frame_gt), axis=0)
             cv2.imshow("YOLOv8 Inference", frame)
             # break the loop if 'q' is pressed
             if cv2.waitKey(0) & 0xFF == ord("q"):
@@ -282,25 +397,29 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
     if save_path:
         with open(save_path, "w") as f:
             for data in all_results:
-                template = "{frame_idx},{id},{type},{truncated},{occluded},{alpha},{x1},{y1},{x2},{y2},{3Dw},{3Dh},{3Dl},{3Dx},{3Dy},{3Dz},{ry},{score}"
+                template = "{frame},{track_id},{type},{truncated},{occluded},{alpha},{bbox_left},{bbox_top},{bbox_right},{bbox_bottom},{height},{width},{length},{x},{y},{z},{yaw},{score}"
                 data_fmt = template.format(**data)
                 f.write(f"{data_fmt}\n")
 
 
 if __name__ == "__main__":
     seq = "seq_02"
-    subseq = "image_03"
+    subseq = "image_02"
     full_seq = f"{seq}/{subseq}"
+    video_dir = "video_rect"
+    expected_df = get_labels_df(f"data/{video_dir}/{seq}")
     # 0000000027 - 0000000055
-    data_glob = f"data/video/{full_seq}/data/*.png"
+    data_glob = f"data/{video_dir}/{full_seq}/data/*.png"
     # save_path = f"track_{seq}_{subseq}.txt"
     save_path = None
-    model = "models/yolov8n.pt"
+    # model = "models/yolov8n.pt"
+    model = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/runs/detect/train2/weights/best.onnx"
     disp = True
     params = {
         "data_glob": data_glob,
         "save_path": save_path,
         "model": model,
         "disp": disp,
+        "expected_df": expected_df,
     }
     execute(**params)
