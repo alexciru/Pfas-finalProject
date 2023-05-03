@@ -1,6 +1,5 @@
 import numpy as np
 import os
-import pathlib
 import cv2
 import os
 import glob
@@ -9,6 +8,7 @@ import pandas as pd
 import open3d as o3d
 from sklearn.cluster import KMeans, k_means, DBSCAN
 import copy
+from DephtStimation import semiGlobalMatchMap, readAllColorMatrices, get_Q_matrix
 
 """
 This file contrains the algorithm and the functions to register the 3D point clouds
@@ -27,6 +27,30 @@ based on the disparity maps and the camera parameters. The algorithm is the foll
 
 """
 
+def draw_labels_on_model(pcl, labels):
+    """ Recives a point cloud and a list of labels and plot the point cloud with the labels as colors"""
+    cmap = plt.get_cmap("tab20")
+    pcl_temp = copy.deepcopy(pcl)
+    max_label = labels.max()
+    print("%s has %d clusters" % (pcl, max_label + 1))
+    colors = cmap(labels / (max_label if max_label > 0 else 1))
+    colors[labels < 0] = 0
+    pcl_temp.colors = o3d.utility.Vector3dVector(colors[:, :3])
+    o3d.visualization.draw_geometries([pcl_temp])
+
+def display_inlier_outlier(cloud, ind):
+    """ Recives a point cloud and a list of indices and plot the inliers and outliers of the point cloud"""
+    inlier_cloud = cloud.select_by_index(ind)
+    outlier_cloud = cloud.select_by_index(ind, invert=True)
+
+    print("Showing outliers (red) and inliers (gray): ")
+    outlier_cloud.paint_uniform_color([1, 0, 0])
+    inlier_cloud.paint_uniform_color([0.8, 0.8, 0.8])
+    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud],
+                                      zoom=0.3412,
+                                      front=[0.4257, -0.2125, -0.8795],
+                                      lookat=[2.6172, 2.0475, 1.532],
+                                      up=[-0.0694, -0.9768, 0.2024])
 
 
 def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2 ,bb_boxes, Q):
@@ -177,51 +201,73 @@ def calculate_bounding_box(pointCloud, color = (0,255,0)):
     """Calculate the bounding box of the point cloud"""
     return pointCloud.get_axis_aligned_bounding_box()
 
+def test_module():
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    DATA_DIR = ROOT_DIR + "\\data\\final_project_2023_rect"
+    SEQ_01 = DATA_DIR + "\\seq_01"
+    SEQ_02 = DATA_DIR + "\\seq_01"
+    SEQ_03 = DATA_DIR + "\\seq_01"
+
+    ############  values   ####################
+    n_frame1 = 0
+    seq = SEQ_01
+    ###########################################
+
+    ## Get the images
+    left_path = SEQ_01 + "\\image_02\\data\\*.png"
+    right_path = SEQ_01 + "\\image_03\\data\\*.png"
+
+    left_images = glob.glob(left_path)
+    right_images = glob.glob(right_path)
+    left_images.sort()
+    right_images.sort()
+
+
+    left_img1 = cv2.imread(left_images[n_frame1])
+    right_img1 = cv2.imread(right_images[n_frame1])
+    leftMatcher, distL = semiGlobalMatchMap(left_img1, right_img1)
+
+
+    n_frame2 = n_frame1 + 1
+    left_img2 = cv2.imread(left_images[n_frame2])
+    right_img2 = cv2.imread(right_images[n_frame2])
+
+    leftMatcher, distL = semiGlobalMatchMap(left_img2, right_img2)
+
+    bb_boxes = get_labels_temp(SEQ_01)
+    Q = get_Q_matrix(left_img1.shape[:2])
+
+
+    # get the filtered version of the disparity map
+    __, disparity_frame1 = semiGlobalMatchMap(left_img1, right_img1)
+    __, disparity_frame2 = semiGlobalMatchMap(left_img2, right_img2)
+
+
+    # Finnally the pointclouds
+    clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
+                                                            ,n_frame1, disparity_frame2, n_frame2 ,bb_boxes, Q)
+    
+    o3d.visualization.draw_geometries(clusterlist1)
+    o3d.visualization.draw_geometries(cluster2_list)
+
+
+    # Plot the pointclouds
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(-10, 10)
+    ax.set_zlim(-10, 10)
+    ax.view_init(azim=0, elev=0)
+    ax.scatter(clusterlist1[0][:,0], clusterlist1[0][:,1], clusterlist1[0][:,2], c=clusterlist1[0][:,3:6]/255, s=1)
+    plt.show()
+
 ##############################################################################################################
 # funtions from the exercises
 ##############################################################################################################
 
-def readAllColorMatrices():
-    """Function to read all the interesting matrices in the calib_cam_to_cam.txt file
-
-    Returns:
-        matrices: all the relevant matrices for the colored images
-    """    
-
-    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    CALIB_DIR = ROOT_DIR + "\\data\\final_project_2023_rect//calib_cam_to_cam.txt"
-
-    
-    with open(CALIB_DIR, 'r') as f:
-        fin = f.readlines()
-        for line in fin:
-            if line[:4] == "R_02":
-                rotation2 = np.array(line[6:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:4] == "R_03":
-                rotation3 = np.array(line[6:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:4] == "K_02":
-                intrinsic2 = np.array(line[6:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:4] == "K_03":
-                intrinsic3 = np.array(line[6:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:4] == "T_02":
-                translation2 = np.array(line[6:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:4] == "T_03":
-                translation3 = np.array(line[6:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:9] == "S_rect_02":
-                imageSize2 = np.array(line[11:].strip().split(" ")).astype('float32')
-            elif line[:9] == "S_rect_03":
-                imageSize3 = np.array(line[11:].strip().split(" ")).astype('float32')
-            elif line[:9] == "R_rect_02":
-                rectRot2 = np.array(line[11:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:9] == "R_rect_03":
-                rectRot3 = np.array(line[11:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:9] == "P_rect_02":
-                camMatrix2 = np.array(line[11:].strip().split(" ")).astype('float32').reshape(3,-1)
-            elif line[:9] == "P_rect_03":
-                camMatrix3 = np.array(line[11:].strip().split(" ")).astype('float32').reshape(3,-1)
-    
-    return rotation2, rotation3, translation2, translation3, imageSize2, imageSize3, \
-            rectRot2, rectRot3, camMatrix2, camMatrix3, intrinsic2, intrinsic3
 
 
 def export_pointcloud(disparity_map, colors, filename):
@@ -291,91 +337,6 @@ def get_labels_temp(seq_dir_):
 
 
 
-def semiGlobalMatchMap(left_img, right_img):
-    """Function using the SGMBM algorithm to compute the disparity map
-
-    Args:
-        left_img (ndarray): color image of the left camera
-        right_img (ndarray): color image of the right camera
-
-    Returns:
-        stereo: the SGMBM object
-        disparity: the disparity map
-    """    
-
-
- 
-    ###### Default values ######
-    blockSize = 7          # odd number, usually in range 3-11
-    minDisparity = -1
-    maxDisparity = 6       
-    numDisparities = maxDisparity-minDisparity  # max disparity minus minDisparity, must be divisible by 16
-    preFilterCap = 1
-    uniquenessRatio = 1
-    # affect the noise
-    speckleRange = 1       # multiplied by 16 implicitly, 1 or 2 usually good
-    speckleWindowSize = 54 # 50-200 range
-    ###################
-   
-    # Creating an object of StereoBM algorithm
-    # Updating the parameters based on the trackbar positions
-    numDisparities =  numDisparities*16
-    if blockSize % 2 == 0:
-        blockSize += 1
-
-    if blockSize < 5:
-        blockSize = 5
-
-    leftMatcher = cv2.StereoSGBM_create()
-
-    # Setting the updated parameters before computing disparity map
-    leftMatcher.setNumDisparities(numDisparities)
-    leftMatcher.setBlockSize(blockSize)
-    leftMatcher.setUniquenessRatio(uniquenessRatio)
-    leftMatcher.setSpeckleRange(speckleRange)
-    leftMatcher.setSpeckleWindowSize(speckleWindowSize)
-    leftMatcher.setMinDisparity(minDisparity)
-    # P1 and P2 values from OpenCV documentation
-    leftMatcher.setP1(8*3*blockSize**2)
-    leftMatcher.setP2(32*3*blockSize**2)
-
-    # Blur the images to increase the accuracy of the disparity map
-    
-    left_img_blur = cv2.blur(cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY), (5,5))
-    right_img_blur = cv2.blur(cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY), (5,5))
-
-
-    # Calculating disparity using the stereoBM algorithm
-    leftDisparity =  leftMatcher.compute(left_img_blur, right_img_blur).astype(np.float32)
-    distL = cv2.ximgproc.getDisparityVis(leftDisparity)
-
-    orgDistL, filteredL = filter_disparity_map(leftMatcher, distL, left_img_blur, right_img_blur)
-
-    return orgDistL, filteredL
-
-def filter_disparity_map(sgbmObject, disparityMap, left_img_blur, right_img_blur):
-    # Calculate the disparity map and apply WLS filter
-    leftMatcher = sgbmObject
-    rightMatcher = cv2.ximgproc.createRightMatcher(leftMatcher)
-
-    # Calculating disparity using the stereoBM algorithm
-    leftDisparity =  leftMatcher.compute(left_img_blur, right_img_blur)
-    rightDisparity = rightMatcher.compute(right_img_blur, left_img_blur)
-
-    # Create a WLS (weighted least squares) filter (source: https://docs.opencv.org/3.4/d3/d14/tutorial_ximgproc_disparity_filtering.html) 
-    wlsFilter = cv2.ximgproc.createDisparityWLSFilter(leftMatcher)
-    wlsFilter.setLambda(8000)     # The tuning parameter, depends on the range of disparity values
-    wlsFilter.setSigmaColor(0.7)    # Adjusts the filter's sensitivity to edges in the image (between 0.8 and 2.0 usually good)
-
-    filteredDisparity = wlsFilter.filter(leftDisparity, left_img_blur, None, rightDisparity)
-
-    # Get the original and filtered disparity images
-    orgDistL = cv2.ximgproc.getDisparityVis(leftDisparity)
-    filteredL = cv2.ximgproc.getDisparityVis(filteredDisparity)
-
-    return orgDistL, filteredL
-
-
 def write_ply(fn, verts, colors):
         ply_header = '''ply
         format ascii 1.0
@@ -396,86 +357,11 @@ def write_ply(fn, verts, colors):
             np.savetxt(f, verts, fmt='%f %f %f %d %d %d ')
 
 
-def get_Q_matrix(img_size):
-    rot2, rot3, trans2, trans3, imgSize2, imgSize3, rectRot2, rectRot3,\
-    cam2, cam3, k2, k3 = readAllColorMatrices()
-    # Q = calculateQManually(cam2, cam3)        # We let opencv calculate the Q matrix
-    
-    cam2 = cam2[:,:3]
-    cam3 = cam3[:,:3]
-    Tmat = np.array([0.54, 0.0, 0.0])   # From the KITTI Sensor setup, in metres 
-    cvQ = np.zeros((4,4))
-    cv2.stereoRectify(cameraMatrix1=cam2, cameraMatrix2=cam3, distCoeffs1=0, distCoeffs2=0,
-                        imageSize=img_size, R=np.identity(3), T=Tmat, 
-                        R1=None, R2=None,P1=None, P2=None, Q=cvQ)
-    
-    return cvQ
-
-
 
 # small main to test the module
 
 if __name__ == "__main__":
     print("##################################")
-    print("# Running the pointcloud module #")
+    print("# Running the pointcloud module  #")
     print("##################################")
-    
-
-    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    DATA_DIR = ROOT_DIR + "\\data\\final_project_2023_rect"
-    SEQ_01 = DATA_DIR + "\\seq_01"
-    SEQ_02 = DATA_DIR + "\\seq_01"
-    SEQ_03 = DATA_DIR + "\\seq_01"
-
-    ############  values   ####################
-    n_frame1 = 0
-    seq = SEQ_01
-    ###########################################
-
-    ## Get the images
-    left_path = SEQ_01 + "\\image_02\\data\\*.png"
-    right_path = SEQ_01 + "\\image_03\\data\\*.png"
-
-    left_images = glob.glob(left_path)
-    right_images = glob.glob(right_path)
-    left_images.sort()
-    right_images.sort()
-
-
-    left_img1 = cv2.imread(left_images[n_frame1])
-    right_img1 = cv2.imread(right_images[n_frame1])
-    leftMatcher, distL = semiGlobalMatchMap(left_img1, right_img1)
-
-
-    n_frame2 = n_frame1 + 1
-    left_img2 = cv2.imread(left_images[n_frame2])
-    right_img2 = cv2.imread(right_images[n_frame2])
-
-    leftMatcher, distL = semiGlobalMatchMap(left_img2, right_img2)
-
-    bb_boxes = get_labels_temp(SEQ_01)
-    Q = get_Q_matrix(left_img1.shape[:2])
-
-
-    # get the filtered version of the disparity map
-    __, disparity_frame1 = semiGlobalMatchMap(left_img1, right_img1)
-    __, disparity_frame2 = semiGlobalMatchMap(left_img2, right_img2)
-
-
-    # Finnally the pointclouds
-    clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
-                                                            ,n_frame1, disparity_frame2, n_frame2 ,bb_boxes, Q)
-    
-
-    # Plot the pointclouds
-    fig = plt.figure(figsize=(10,10))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_xlim(-10, 10)
-    ax.set_ylim(-10, 10)
-    ax.set_zlim(-10, 10)
-    ax.view_init(azim=0, elev=0)
-    ax.scatter(clusterlist1[0][:,0], clusterlist1[0][:,1], clusterlist1[0][:,2], c=clusterlist1[0][:,3:6]/255, s=1)
-    plt.show()
+    test_module()
