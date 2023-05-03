@@ -8,6 +8,7 @@ import pandas as pd
 import open3d as o3d
 from sklearn.cluster import KMeans, k_means, DBSCAN
 import copy
+from collections import Counter
 from DephtStimation import semiGlobalMatchMap, readAllColorMatrices, get_Q_matrix
 
 """
@@ -53,7 +54,7 @@ def display_inlier_outlier(cloud, ind):
                                       up=[-0.0694, -0.9768, 0.2024])
 
 
-def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2 ,bb_boxes, Q):
+def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q):
     """    
     This is the main function of the algorithm. It takes the disparity maps of two frames and the bounding boxes
     parameters:
@@ -68,18 +69,19 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
     """
     # Get list of objects from both frames
     bb1 =  bb_boxes[bb_boxes['frame'] == n_frame1]
-    cluster_list1 = extract_objects_point_clouds(disparity_frame1,left_img1,  bb1, Q)
+    cluster_list1 = extract_objects_point_clouds(disparity_frame1, left_img1,  bb1, Q)
     bb2 =  bb_boxes[bb_boxes['frame'] == n_frame2]
-    cluster_list2 = extract_objects_point_clouds(disparity_frame2,left_img2,  bb2, Q)
+    cluster_list2 = extract_objects_point_clouds(disparity_frame2, left_img2,  bb2, Q)
 
     # plot the point clouds
-    o3d.visualization.draw_geometries(cluster_list1)
-    o3d.visualization.draw_geometries(cluster_list2)
+    # o3d.visualization.draw_geometries(cluster_list1)
+    # o3d.visualization.draw_geometries(cluster_list2)
     
-
     # Get the clusters that are in both frames
     n_matches = min(len(cluster_list1), len(cluster_list2))
 
+    post_cluster1_list = []
+    post_cluster2_list = []
     translation_list = []
     # Get the clusters that are in both frames
     # TODO: match the clusters using the ID from DeepSORT
@@ -90,21 +92,36 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
         cluster2 = cluster_list2[i]
 
         # Remove outliers
-        cluster1 = remove_outliers_from_pointCloud(cluster1)
-        cluster2 = remove_outliers_from_pointCloud(cluster2)
 
-        # Cluster the point cloud
+        # remove outliers using standar deviation
+        # TODO: Alex - this is not relevant anymore
+        # cluster1 = remove_outliers_from_pointCloud(cluster1)
+        # cluster2 = remove_outliers_from_pointCloud(cluster2)
+
+        # Cluster the point to remove the noise from the background
         labels1 = cluster_pointCloud(cluster1)
         labels2 = cluster_pointCloud(cluster2)
 
+
+        # Get the biggest cluster 
+        cluster1 = get_biggest_cluster(cluster1, labels1)
+        cluster2 = get_biggest_cluster(cluster2, labels2)
+    
+        # plot the point clouds
+        o3d.visualization.draw_geometries([cluster1])
+        o3d.visualization.draw_geometries([cluster2])
+
         # Calculate the vector of translation
+        post_cluster1_list.append(cluster1)
+        post_cluster2_list.append(cluster2)
+        
         translation = calculate_translation_AvgPoint(cluster1, cluster2)
         translation_list.append(translation)
 
     # The clusters list should be in order with the IDs from DeepSORT
     # so the index i in the list correspond to the same object in both frames and with the translation vector
     # in the list
-    return cluster1, cluster2, translation_list
+    return post_cluster1_list, post_cluster2_list, translation_list
 
 
 def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q):
@@ -196,10 +213,11 @@ def calculate_translation_ICP(pointCloud_frame1, pointCloud_frame2):
        This fucntion asumes that the pointcloud belong to the same cluster in different frames"""
     raise NotImplementedError()
 
-
 def calculate_bounding_box(pointCloud, color = (0,255,0)):
     """Calculate the bounding box of the point cloud"""
     return pointCloud.get_axis_aligned_bounding_box()
+
+
 
 def test_module():
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -245,11 +263,10 @@ def test_module():
 
     # Finnally the pointclouds
     clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
-                                                            ,n_frame1, disparity_frame2, n_frame2 ,bb_boxes, Q)
+                                                            ,n_frame1, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q)
     
     o3d.visualization.draw_geometries(clusterlist1)
     o3d.visualization.draw_geometries(cluster2_list)
-
 
     # Plot the pointclouds
     fig = plt.figure(figsize=(10,10))
@@ -264,10 +281,25 @@ def test_module():
     ax.scatter(clusterlist1[0][:,0], clusterlist1[0][:,1], clusterlist1[0][:,2], c=clusterlist1[0][:,3:6]/255, s=1)
     plt.show()
 
+
+def get_biggest_cluster(pointClouds, labels):
+    """Get the biggest cluster from the pointclouds"""
+   
+    id_clusters = Counter(labels).most_common(1)
+    id_clusters = [id[0] for id in id_clusters]
+
+    new_cluster = []
+    for i, l in enumerate(labels):
+        if l == id_clusters:
+            new_cluster.append(i)
+
+    # Get the points of the biggest cluster
+    newCluster = pointClouds.select_by_index(new_cluster)
+    return newCluster
+
 ##############################################################################################################
 # funtions from the exercises
 ##############################################################################################################
-
 
 
 def export_pointcloud(disparity_map, colors, filename):
@@ -336,7 +368,6 @@ def get_labels_temp(seq_dir_):
     return pd.read_csv(_labels_file, sep=' ', header=None, names=headers)
 
 
-
 def write_ply(fn, verts, colors):
         ply_header = '''ply
         format ascii 1.0
@@ -355,7 +386,6 @@ def write_ply(fn, verts, colors):
         with open(fn, 'wb') as f:
             f.write((ply_header % dict(vert_num=len(verts))).encode('utf-8'))
             np.savetxt(f, verts, fmt='%f %f %f %d %d %d ')
-
 
 
 # small main to test the module
