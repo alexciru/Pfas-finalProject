@@ -16,6 +16,15 @@ else
 HAS_CONDA=True
 endif
 
+segment:
+	python3 notebooks/detection/segmenter.py
+
+detect:
+	python3 notebooks/detection/detector.py
+
+track:
+	python3 notebooks/tracking/tracker.py
+
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
