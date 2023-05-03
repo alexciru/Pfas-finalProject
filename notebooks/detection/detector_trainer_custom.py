@@ -2,6 +2,7 @@ from ultralytics import YOLO
 from pathlib import Path
 import sys
 import os
+import matplotlib.pyplot as plt
 import cv2
 
 
@@ -56,6 +57,11 @@ for box in boxes:
     cv2.rectangle(img, (int(box[0]), int(box[1])) ,(int(box[2]), int(box[3])), (0, 255, 0), 2)
     cv2.putText(img, label, (box[0], box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
     cv2.imshow("YOLOv8 Inference", img)
+
+
+
+
+
 
 
 
