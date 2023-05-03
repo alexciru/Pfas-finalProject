@@ -116,7 +116,10 @@ def get_labels_df(seq_dir_):
 def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=None):
     # deepsort
     # TODO (elle): how to tune params?
-    max_cosine_distance = 1.0
+    # distance used for obj similarity (helps decide if two objects are the same)
+    # max_cosine_distance = 1.0
+    max_cosine_distance = 0.2
+    # max_cosine_distance = 0.4
     print("MAX COSINE DIST", max_cosine_distance)
     nn_budget = None
     model_filename = local_parent / "networks/mars-small128.pb"
@@ -296,7 +299,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=N
             # confirmed (associated for n_init+1 or more frames), or deleted (no longer tracked)
             # a new object is classified as tentative in the first n_init frames
             # https://github.com/nwojke/deep_sort/issues/48
-            if not track.is_confirmed() or track.time_since_update > 1:
+            if not track.is_confirmed():  # or track.time_since_update > 1:
                 continue
 
             # change track bbox to top left, bottom right coordinates.
@@ -382,12 +385,12 @@ def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=N
                 # print("exp " + exp_fmt)
                 mismatch_fmt = f"{res['type']} -> {min_exp['type']} "
                 print(
-                    f"{frame_idx}: {id} -> {min_id}, {mismatch_fmt if res['type'] != min_exp['type'] else ''}with error {min_dist}"
+                    f"{frame_idx}: {id} -> {min_id}, {mismatch_fmt if res['type'] != min_exp['type'] else ''}with error {min_dist}, conf {res['score']}"
                 )
         print(f"det_fails: {det_fails}")
 
         # print(expected_df[expected_df["frame"] == frame_idx])
-        if disp:
+        if disp:  # and frame_idx >= 51:
             # show frame and frame_gt one on top of the other
             frame = np.concatenate((frame, frame_gt), axis=0)
             cv2.imshow("YOLOv8 Inference", frame)
