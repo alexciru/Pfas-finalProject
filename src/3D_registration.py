@@ -44,12 +44,17 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
     """
     # Get list of objects from both frames
     bb1 =  bb_boxes[bb_boxes['frame'] == n_frame1]
-    cluster_list1 = extract_objects_point_clouds(disparity_frame1, bb1, Q)
+    cluster_list1 = extract_objects_point_clouds(disparity_frame1,left_img1,  bb1, Q)
     bb2 =  bb_boxes[bb_boxes['frame'] == n_frame2]
-    cluster_list2 = extract_objects_point_clouds(disparity_frame2, bb2, Q)
+    cluster_list2 = extract_objects_point_clouds(disparity_frame2,left_img2,  bb2, Q)
+
+    # plot the point clouds
+    o3d.visualization.draw_geometries(cluster_list1)
+    o3d.visualization.draw_geometries(cluster_list2)
+    
 
     # Get the clusters that are in both frames
-    n_matches = min(len(cluster_list1, cluster_list2))
+    n_matches = min(len(cluster_list1), len(cluster_list2))
 
     translation_list = []
     # Get the clusters that are in both frames
@@ -78,14 +83,16 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
     return cluster1, cluster2, translation_list
 
 
-def extract_objects_point_clouds(disparity_map, bb_detection, Q):
+def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q):
     """Method to extract the list of the pointClouds of the objects detected in the frame
        we are using the bounding box therefore the pointclouds may contains point from the background
        
        returns: list of point clouds"""
     clusters = []
-    for bb in bb_detection:
+    # TODO: change for new bb_detection one pipeline implemented
+    for bb in bb_detection[['bbox_left', 'bbox_top', 'bbox_right', 'bbox_bottom']].values:
         # create mask
+
         mask = np.zeros(disparity_map.shape, dtype=np.uint8)
         mask[int(bb[1]):int(bb[3]), int(bb[0]): int(bb[2])] = 255
 
@@ -94,22 +101,33 @@ def extract_objects_point_clouds(disparity_map, bb_detection, Q):
         maskedDisparity[mask == 0] = 0
 
         # get point cloud
-        points = generate_pointCloud(maskedDisparity, Q)
-        clusters.append(points)
+        points , colors = generate_pointCloud(maskedDisparity, color_img, Q)
+        write_ply("tmp_pointcloud.ply", points, colors)
+        pcd = o3d.io.read_point_cloud("tmp_pointcloud.ply")
+
+        # convert to open3d point cloud and add the color from the img
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(points)
+        # pcd.colors = o3d.utility.Vector3dVector(colors) 
+
+        # plot the point cloud
+        #o3d.visualization.draw_geometries([pcd])
+        
+        clusters.append(pcd)
 
     return clusters
 
-def generate_pointCloud(disparity_map, Q):
+
+def generate_pointCloud(disparity_map,color_img,  Q):
         """ Function to generate the point cloud from the disparity map and the Q matrix """
         points = cv2.reprojectImageTo3D(disparity_map, Q, handleMissingValues=False)
-
         # reflect on x axis 
         reflect_matrix = np.identity(3)
         reflect_matrix[0] *= -1
         points = np.matmul(points,reflect_matrix)
         
         # extract colors from the image
-        colors = cv2.cvtColor(colors, cv2.COLOR_BGR2RGB) 
+        colors = cv2.cvtColor(color_img, cv2.COLOR_BGR2RGB) 
 
         # Remove the points with value 0 (no depth) one applied by mask
         mask = disparity_map > disparity_map.min()
@@ -122,7 +140,7 @@ def generate_pointCloud(disparity_map, Q):
         out_colors = out_colors.reshape(-1, 3)
         out_colors = out_colors[idx]
 
-        return out_points
+        return out_points, out_colors
 
 def remove_outliers_from_pointCloud(pointCloud):
     """Remove outliers using stadistical approach"""
@@ -169,9 +187,12 @@ def readAllColorMatrices():
     Returns:
         matrices: all the relevant matrices for the colored images
     """    
-    path = "../data/final_project_2023_rect/calib_cam_to_cam.txt"
+
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    CALIB_DIR = ROOT_DIR + "\\data\\final_project_2023_rect//calib_cam_to_cam.txt"
+
     
-    with open(path, 'r') as f:
+    with open(CALIB_DIR, 'r') as f:
         fin = f.readlines()
         for line in fin:
             if line[:4] == "R_02":
@@ -264,7 +285,7 @@ def get_labels_temp(seq_dir_):
     print("TEMPORAL FUNTION WE USE THE ONE THAT IONY DID")
     print("TEMPORAL FUNTION WE USE THE ONE THAT IONY DID")
 
-    _labels_file = str(seq_dir_ / "labels.txt")
+    _labels_file = str(seq_dir_ + "\\labels.txt")
     headers = ['frame', 'track_id', 'type', 'truncated', 'occluded', 'alpha', 'bbox_left', 'bbox_top', 'bbox_right', 'bbox_bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'yaw']
     return pd.read_csv(_labels_file, sep=' ', header=None, names=headers)
 
@@ -281,6 +302,8 @@ def semiGlobalMatchMap(left_img, right_img):
         stereo: the SGMBM object
         disparity: the disparity map
     """    
+
+
  
     ###### Default values ######
     blockSize = 7          # odd number, usually in range 3-11
@@ -289,7 +312,6 @@ def semiGlobalMatchMap(left_img, right_img):
     numDisparities = maxDisparity-minDisparity  # max disparity minus minDisparity, must be divisible by 16
     preFilterCap = 1
     uniquenessRatio = 1
-
     # affect the noise
     speckleRange = 1       # multiplied by 16 implicitly, 1 or 2 usually good
     speckleWindowSize = 54 # 50-200 range
@@ -316,17 +338,66 @@ def semiGlobalMatchMap(left_img, right_img):
     # P1 and P2 values from OpenCV documentation
     leftMatcher.setP1(8*3*blockSize**2)
     leftMatcher.setP2(32*3*blockSize**2)
+
+    # Blur the images to increase the accuracy of the disparity map
     
+    left_img_blur = cv2.blur(cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY), (5,5))
+    right_img_blur = cv2.blur(cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY), (5,5))
+
+
     # Calculating disparity using the stereoBM algorithm
-    leftDisparity =  leftMatcher.compute(left_img, right_img).astype(np.float32)
+    leftDisparity =  leftMatcher.compute(left_img_blur, right_img_blur).astype(np.float32)
     distL = cv2.ximgproc.getDisparityVis(leftDisparity)
 
-    return leftMatcher, distL
+    orgDistL, filteredL = filter_disparity_map(leftMatcher, distL, left_img_blur, right_img_blur)
+
+    return orgDistL, filteredL
+
+def filter_disparity_map(sgbmObject, disparityMap, left_img_blur, right_img_blur):
+    # Calculate the disparity map and apply WLS filter
+    leftMatcher = sgbmObject
+    rightMatcher = cv2.ximgproc.createRightMatcher(leftMatcher)
+
+    # Calculating disparity using the stereoBM algorithm
+    leftDisparity =  leftMatcher.compute(left_img_blur, right_img_blur)
+    rightDisparity = rightMatcher.compute(right_img_blur, left_img_blur)
+
+    # Create a WLS (weighted least squares) filter (source: https://docs.opencv.org/3.4/d3/d14/tutorial_ximgproc_disparity_filtering.html) 
+    wlsFilter = cv2.ximgproc.createDisparityWLSFilter(leftMatcher)
+    wlsFilter.setLambda(8000)     # The tuning parameter, depends on the range of disparity values
+    wlsFilter.setSigmaColor(0.7)    # Adjusts the filter's sensitivity to edges in the image (between 0.8 and 2.0 usually good)
+
+    filteredDisparity = wlsFilter.filter(leftDisparity, left_img_blur, None, rightDisparity)
+
+    # Get the original and filtered disparity images
+    orgDistL = cv2.ximgproc.getDisparityVis(leftDisparity)
+    filteredL = cv2.ximgproc.getDisparityVis(filteredDisparity)
+
+    return orgDistL, filteredL
 
 
+def write_ply(fn, verts, colors):
+        ply_header = '''ply
+        format ascii 1.0
+        element vertex %(vert_num)d
+        property float x
+        property float y
+        property float z
+        property uchar red
+        property uchar green
+        property uchar blue
+        end_header
+        '''
+        colors = colors.copy()
+        verts = verts.reshape(-1, 3)
+        verts = np.hstack([verts, colors])
+        with open(fn, 'wb') as f:
+            f.write((ply_header % dict(vert_num=len(verts))).encode('utf-8'))
+            np.savetxt(f, verts, fmt='%f %f %f %d %d %d ')
 
 
 def get_Q_matrix(img_size):
+    rot2, rot3, trans2, trans3, imgSize2, imgSize3, rectRot2, rectRot3,\
     cam2, cam3, k2, k3 = readAllColorMatrices()
     # Q = calculateQManually(cam2, cam3)        # We let opencv calculate the Q matrix
     
@@ -350,37 +421,45 @@ if __name__ == "__main__":
     print("##################################")
     
 
-    ROOT_DIR = pathlib.Path(os.getcwd())
-    DATA_DIR = ROOT_DIR / "data/final_project_2023_rect"
-    SEQ_01 = DATA_DIR / "seq_01"
-    SEQ_02 = DATA_DIR / "seq_01"
-    SEQ_03 = DATA_DIR / "seq_01"
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    DATA_DIR = ROOT_DIR + "\\data\\final_project_2023_rect"
+    SEQ_01 = DATA_DIR + "\\seq_01"
+    SEQ_02 = DATA_DIR + "\\seq_01"
+    SEQ_03 = DATA_DIR + "\\seq_01"
 
+    ############  values   ####################
+    n_frame1 = 0
+    seq = SEQ_01
+    ###########################################
 
     ## Get the images
-    left_path = SEQ_01 / "image_02/data/*.png"
-    right_path = SEQ_01 / "image_03/data/*.png"
-    print(left_path)
-    left_images = glob.glob(str(left_path))
-    right_images = glob.glob(str(right_path))
+    left_path = SEQ_01 + "\\image_02\\data\\*.png"
+    right_path = SEQ_01 + "\\image_03\\data\\*.png"
+
+    left_images = glob.glob(left_path)
+    right_images = glob.glob(right_path)
     left_images.sort()
     right_images.sort()
 
-    # Load the disparity maps
-    n_frame1 = 0
-    left_img1 = left_images[n_frame1]
-    right_img1 = right_images[n_frame1]
-    disparity_frame1 = semiGlobalMatchMap(left_img1, right_img1)
+
+    left_img1 = cv2.imread(left_images[n_frame1])
+    right_img1 = cv2.imread(right_images[n_frame1])
+    leftMatcher, distL = semiGlobalMatchMap(left_img1, right_img1)
 
 
     n_frame2 = n_frame1 + 1
-    left_img2 = left_images[n_frame1]
-    right_img2 = right_images[n_frame1]
+    left_img2 = cv2.imread(left_images[n_frame2])
+    right_img2 = cv2.imread(right_images[n_frame2])
 
-    disparity_frame2 = semiGlobalMatchMap(left_img2, right_img2)
+    leftMatcher, distL = semiGlobalMatchMap(left_img2, right_img2)
 
-    bb_boxes = get_labels_temp()
-    Q = get_Q_matrix(disparity_frame1.shape[:2])
+    bb_boxes = get_labels_temp(SEQ_01)
+    Q = get_Q_matrix(left_img1.shape[:2])
+
+
+    # get the filtered version of the disparity map
+    __, disparity_frame1 = semiGlobalMatchMap(left_img1, right_img1)
+    __, disparity_frame2 = semiGlobalMatchMap(left_img2, right_img2)
 
 
     # Finnally the pointclouds
