@@ -94,6 +94,13 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
         return
 
     frame_paths = sorted(glob.glob(data_glob))
+    new_frame_paths = []
+    # filter for paths that have number bet 27 and 55:
+    for path in frame_paths:
+        frame_num = int(path.split("/")[-1].split(".")[0])
+        if frame_num >= 20 and frame_num <= 80:
+            new_frame_paths.append(path)
+    frame_paths = new_frame_paths
     if len(frame_paths) == 0:
         print(f"No frames found at {data_glob}, exiting")
         return
@@ -188,6 +195,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
     all_results = []
     unknown_default = "?"
     for frame_idx, path in enumerate(frame_paths):
+        frame_idx = int(path.split("/")[-1].split(".")[0])
         frame = cv2.imread(path)
         if frame is None:
             print(f"image not found at {path}")
@@ -263,7 +271,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True):
                 "score": conf,
             }
             all_results.append(data)
-            print(f"frame: {frame_idx}, cls: {cls}, box: {bbox}")
+            print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
             if disp:
                 frame = disp_track(frame, data)
         if disp:
@@ -283,6 +291,7 @@ if __name__ == "__main__":
     seq = "seq_02"
     subseq = "image_03"
     full_seq = f"{seq}/{subseq}"
+    # 0000000027 - 0000000055
     data_glob = f"data/video/{full_seq}/data/*.png"
     # save_path = f"track_{seq}_{subseq}.txt"
     save_path = None
