@@ -30,7 +30,7 @@ def filter_disparity_map(sgbmObject, disparityMap, left_img_blur, right_img_blur
     orgDistL = cv2.ximgproc.getDisparityVis(leftDisparity)
     filteredL = cv2.ximgproc.getDisparityVis(filteredDisparity)
 
-    return orgDistL, filteredL
+    return filteredDisparity, filteredL
 
 def semiGlobalMatchMap(left_img, right_img):
     """Function using the SGMBM algorithm to compute the disparity map
@@ -86,9 +86,9 @@ def semiGlobalMatchMap(left_img, right_img):
     leftDisparity =  leftMatcher.compute(left_img_blur, right_img_blur).astype(np.float32)
     distL = cv2.ximgproc.getDisparityVis(leftDisparity)
 
-    orgDistL, filteredL = filter_disparity_map(leftMatcher, distL, left_img_blur, right_img_blur)
+    filteredDisparity, filteredL = filter_disparity_map(leftMatcher, distL, left_img_blur, right_img_blur)
 
-    return orgDistL, filteredL
+    return filteredDisparity, filteredL
 
 def readAllColorMatrices():
     """Function to read all the interesting matrices in the calib_cam_to_cam.txt file
@@ -168,7 +168,7 @@ def test_module():
 
     left_img1 = cv2.imread(left_images[n_frame1])
     right_img1 = cv2.imread(right_images[n_frame1])
-    leftMatcher, distL = semiGlobalMatchMap(left_img1, right_img1)
+    disparity, __ = semiGlobalMatchMap(left_img1, right_img1)
 
 
 if __name__ == "__main__":

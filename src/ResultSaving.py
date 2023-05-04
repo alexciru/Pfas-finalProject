@@ -1,5 +1,5 @@
-from registration import calculate_bounding_box, calculate_rotation_beetween_cluster
-
+from registration import calculate_bounding_box, calculate_rotation_beetween_cluster, get_avg_point_pointCloud
+import open3d as o3d
 """
 Funtion to save the results of the object detection to a file
 Format:
@@ -13,10 +13,13 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
     # Get the data from the pointcloud1 
     # pointcloud2 only use for calculating the vector beetween frames
     # and the translation vector
+    
 
     frame = frame_id
-    for i, cluster in enumerate(clusterlist1_list):
+    for i in range(2):
         row = []
+
+        cluster = clusterlist1_list[i]
 
         track_id = 1 # TODO:  change this
         otype = "Car"# TODO:  change this
@@ -44,15 +47,18 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
 
         # center location in camera coordinates
         # obtain from cluter, make a box and get the center
-        center = bbox.get_center()
-        x = center[0]
-        y = center[1]
-        z = center[2]
+        avg_point = get_avg_point_pointCloud(cluster)
+        print("location: ", avg_point)
+        print("Box location: ", bbox.get_center())
+
+        # convert to left hand coordinates for openCV
+        x = avg_point[0]
+        y = avg_point[1]
+        z = avg_point[2]
 
 
         # Obtain from clusterList2 with same index and obtain rotation of vector
         rotation_y = calculate_rotation_beetween_cluster(cluster, cluster2_list[i])
-
         
         # Obtain from DeepSort
         score = 69.420 
