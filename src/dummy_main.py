@@ -61,8 +61,8 @@ def main():
     clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
                                                             ,n_frame1, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q, ex_mat)
     
-    o3d.visualization.draw_geometries([clusterlist1[0], clusterlist1[1]] )
-    o3d.visualization.draw_geometries(cluster2_list)
+    #o3d.visualization.draw_geometries([clusterlist1[0], clusterlist1[1]] )
+    #o3d.visualization.draw_geometries(cluster2_list)
 
     
     write_results_to_file(n_frame1, None, clusterlist1, cluster2_list, filename = "results.txt")

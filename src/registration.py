@@ -109,8 +109,8 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
         cluster2 = get_biggest_cluster(cluster2, labels2)
     
         # TODO: Alex - this is not relevant anymore
-        cluster1 = remove_outliers_from_pointCloud(cluster1)
-        cluster2 = remove_outliers_from_pointCloud(cluster2)
+        # cluster1 = remove_outliers_from_pointCloud(cluster1)
+        # cluster2 = remove_outliers_from_pointCloud(cluster2)
         
 
         # Calculate the vector of translation
@@ -162,7 +162,7 @@ def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q, ex_
         # plot the point cloud
         #o3d.visualization.draw_geometries([pcd])
         # TODO: store openCV cluster
-        clusters.append(pcd)
+        clusters.append(points)
 
     return clusters
 
@@ -173,7 +173,7 @@ def generate_pointCloud(disparity_map,color_img,  Q):
         # reflect on x axis 
         reflect_matrix = np.identity(3)
         reflect_matrix[0] *= -1
-        points = np.dot(points, reflect_matrix)
+        points = np.matmul(points, reflect_matrix)
         
         
         # extract colors from the image
@@ -200,7 +200,7 @@ def remove_outliers_from_pointCloud(pointCloud):
 
 def cluster_BDscan(point_cloud, min_samples=50, eps=0.2):
     """Cluster the point cloud using DBSCAN to divide front from back"""
-    xyz = np.asarray(point_cloud.points)
+    xyz = np.asarray(point_cloud)
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(xyz)
     labels = db.labels_
     return labels
@@ -214,7 +214,7 @@ def calculate_translation_AvgPoint(pointCloud_frame1, pointCloud_frame2):
 
 def get_avg_point_pointCloud(pointCloud):
     """ Return the average point of the point cloud"""
-    xyz = np.asarray(pointCloud.points)
+    xyz = np.asarray(pointCloud)
     return np.mean(xyz, axis=0)
 
 def calculate_translation_ICP(pointCloud_frame1, pointCloud_frame2):
@@ -254,14 +254,13 @@ def get_biggest_cluster(pointClouds, labels):
     id_clusters = Counter(labels).most_common(1)
     id_clusters = [id[0] for id in id_clusters]
 
-    new_cluster = []
+    points = []
     for i, l in enumerate(labels):
         if l == id_clusters:
-            new_cluster.append(i)
+            points.append(pointClouds[i])
 
-    # Get the points of the biggest cluster
-    newCluster = pointClouds.select_by_index(new_cluster)
-    return newCluster
+    # Get the points of the biggest cluste
+    return points
 
 ##############################################################################################################
 # funtions from the exercises

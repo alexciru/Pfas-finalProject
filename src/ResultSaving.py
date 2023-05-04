@@ -1,5 +1,8 @@
 from registration import calculate_bounding_box, calculate_rotation_beetween_cluster, get_avg_point_pointCloud
+from DephtStimation import get_Q_matrix
 import open3d as o3d
+import numpy as np
+import cv2
 """
 Funtion to save the results of the object detection to a file
 Format:
@@ -34,24 +37,43 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
         bbox_right = 0 
         bbox_bottom = 0 
 
-        bbox = calculate_bounding_box(cluster)
+        # 3D object dimensions: height, width, length (in meters)
+        # Obtain from cluter
+        min_x, min_y, min_z = np.min(cluster, axis=0)
+        max_x, max_y, max_z = np.max(cluster, axis=0)
 
-        max_bound = bbox.get_max_bound()
-        min_bound = bbox.get_min_bound()
+        width = max_x - min_x
+        height = max_y - min_y
+        length = max_z - min_z
 
-        # Calculate the dimensions
-        width = max_bound[0] - min_bound[0]
-        height = max_bound[1] - min_bound[1]
-        length = max_bound[2] - min_bound[2]
         # dimensions in camera coordinates
 
         # center location in camera coordinates
         # obtain from cluter, make a box and get the center
         avg_point = get_avg_point_pointCloud(cluster)
         print("location: ", avg_point)
-        print("Box location: ", bbox.get_center())
 
-        # convert to left hand coordinates for openCV
+        # transform to world coordinates with R1 and T1
+        
+        
+        # transform camera coordinates to world coordinates
+        ex_mat = np.array([[9.999838e-01,-5.012736e-03, -2.710741e-03, 5.989688e-02],
+                        [5.002007e-03,9.999797e-01,-3.950381e-03,-1.367835e-03],
+                        [2.730489e-03,3.936758e-03,9.999885e-01, 4.637624e-03],
+                        [0,0,0,1]])
+        Q = np_mat = np.array([[   1.        ,    0.        ,    0.        , -604.08142853],
+                                [   0.        ,    1.        ,    0.        , -180.50659943],
+                                [   0.        ,    0.        ,    0.        ,  707.04931641],
+                                [   0.        ,    0.        ,   -1.85185185,   0.0]])
+        # transform camera coordinates to world coordinates
+        avg_point = np.append(avg_point, 1)
+        points_world = np.matmul(ex_mat, avg_point)
+
+        # convert world coordinates to camera coordinates
+        #points_world = np.append(avg_point, 1)
+        #points_camera = np.matmul(np.linalg.inv(ex_mat), points_world)
+
+
         x = avg_point[0]
         y = avg_point[1]
         z = avg_point[2]
