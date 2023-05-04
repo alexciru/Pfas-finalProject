@@ -48,8 +48,11 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
         # center location in camera coordinates
         # obtain from cluter, make a box and get the center
         avg_point = get_avg_point_pointCloud(cluster)
-        print("location: ", avg_point)
-        print("Box location: ", bbox.get_center())
+        
+        # Get the bottom left corner of the 3d bounding box of cluster
+        # and calculate the center of the 3d bounding box
+        
+
 
         # convert to left hand coordinates for openCV
         x = avg_point[0]
