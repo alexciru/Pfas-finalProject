@@ -154,13 +154,13 @@ def execute(
         return
 
     frame_paths = sorted(glob.glob(data_glob))
-    new_frame_paths = []
     # leave for debugging occlusions: started from frame 25
+    #     new_frame_paths = []
     # for path in frame_paths:
     #     frame_num = int(path.split("/")[-1].split(".")[0])
     #     if frame_num >= 25:
     #         new_frame_paths.append(path)
-    frame_paths = new_frame_paths
+    # frame_paths = new_frame_paths
     if len(frame_paths) == 0:
         print(f"No frames found at {data_glob}, exiting")
         return
