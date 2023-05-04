@@ -2,6 +2,7 @@ import cv2
 import os 
 import glob
 import numpy as np
+
 """ This file contains the methods used for the depth estimation of the images.
     The methods are:
         - stereoBMMap

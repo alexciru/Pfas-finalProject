@@ -107,10 +107,6 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
         cluster1 = get_biggest_cluster(cluster1, labels1)
         cluster2 = get_biggest_cluster(cluster2, labels2)
     
-        # plot the point clouds
-        o3d.visualization.draw_geometries([cluster1])
-        o3d.visualization.draw_geometries([cluster2])
-
         # Calculate the vector of translation
         post_cluster1_list.append(cluster1)
         post_cluster2_list.append(cluster2)
@@ -218,6 +214,24 @@ def calculate_bounding_box(pointCloud, color = (0,255,0)):
     return pointCloud.get_axis_aligned_bounding_box()
 
 
+def calculate_vector_beetween_cluster(cluster1, cluster2):
+    """ Calculate the vector between two clusters
+        used to get the vector beetween frames """
+    avg1 = get_avg_point_pointCloud(cluster1)
+    avg2 = get_avg_point_pointCloud(cluster2)
+    return avg2 - avg1
+
+def calculate_rotation_beetween_cluster(cluster1, cluster2):
+    """ Calcultate rotation beetween two clusters in y"""
+    avg1 = get_avg_point_pointCloud(cluster1)
+    avg2 = get_avg_point_pointCloud(cluster2)
+    diff = avg2 - avg1
+
+
+    # get the rotation in y axis
+    return diff[1]
+    
+
 
 def test_module():
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -267,19 +281,6 @@ def test_module():
     
     o3d.visualization.draw_geometries(clusterlist1)
     o3d.visualization.draw_geometries(cluster2_list)
-
-    # Plot the pointclouds
-    fig = plt.figure(figsize=(10,10))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_xlim(-10, 10)
-    ax.set_ylim(-10, 10)
-    ax.set_zlim(-10, 10)
-    ax.view_init(azim=0, elev=0)
-    ax.scatter(clusterlist1[0][:,0], clusterlist1[0][:,1], clusterlist1[0][:,2], c=clusterlist1[0][:,3:6]/255, s=1)
-    plt.show()
 
 
 def get_biggest_cluster(pointClouds, labels):
