@@ -67,9 +67,6 @@ def main():
     
     write_results_to_file(n_frame1, None, clusterlist1, cluster2_list, filename = "results.txt")
 
-    # plot open3d armadillo
-    mesh = o3d.io.read_triangle_mesh("armadillo.ply")
-    o3d.visualization.draw_geometries([mesh])
 
 if __name__ == "__main__":
     main()

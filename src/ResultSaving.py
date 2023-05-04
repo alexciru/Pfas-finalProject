@@ -49,15 +49,11 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
         # obtain from cluter, make a box and get the center
         avg_point = get_avg_point_pointCloud(cluster)
         
-        # Get the bottom left corner of the 3d bounding box of cluster
-        # and calculate the center of the 3d bounding box
-        
-
-
+        # create bbox from cluster
         # convert to left hand coordinates for openCV
-        x = avg_point[0]
-        y = avg_point[1]
-        z = avg_point[2]
+        x = max_bound[0]
+        y = max_bound[1]
+        z = max_bound[2]
 
 
         # Obtain from clusterList2 with same index and obtain rotation of vector
