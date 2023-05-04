@@ -113,25 +113,30 @@ def get_labels_df(seq_dir_):
     return pd.read_csv(_labels_file, sep=" ", header=None, names=headers)
 
 
-def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=None):
+def execute(
+    data_glob=None,
+    detector_model_file=None,
+    save_path=None,
+    disp=True,
+    expected_df=None,
+    debug=False,
+):
     # deepsort
-    # TODO (elle): how to tune params?
     # distance used for obj similarity (helps decide if two objects are the same)
+    # higher the value, easier it is to think two objects are the same
+    max_cosine_distance = 0.6
     # max_cosine_distance = 1.0
-    max_cosine_distance = 0.2
-    # max_cosine_distance = 0.4
-    print("MAX COSINE DIST", max_cosine_distance)
     nn_budget = None
-    model_filename = local_parent / "networks/mars-small128.pb"
-    # model = ROOT / model
+    deepsort_model_file = local_parent / "networks/mars-small128.pb"
+    detector_model_file = ROOT / detector_model_file
     if save_path:
         save_path = local_parent / f"results/{save_path}"
 
-    encoder = gdet.create_box_encoder(model_filename, batch_size=1)
+    encoder = gdet.create_box_encoder(deepsort_model_file, batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget
     )
-    max_age = 1000
+    max_age = 100
     n_init = 1
     print(
         f"""
@@ -142,7 +147,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=N
     """
     )
     tracker = Tracker(metric, max_age=max_age, n_init=n_init)
-    detector = YOLO(model)
+    detector = YOLO(detector_model_file)
 
     if data_glob is None:
         print("No frame path pattern provided, exiting")
@@ -250,6 +255,7 @@ def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=N
     all_results = []
     unknown_default = "?"
     ds_id2gt_id = {}
+    id2class = {}
     for frame_idx, path in enumerate(frame_paths):
         frame_idx = int(path.split("/")[-1].split(".")[0])
         frame = cv2.imread(path)
@@ -299,48 +305,56 @@ def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=N
             # confirmed (associated for n_init+1 or more frames), or deleted (no longer tracked)
             # a new object is classified as tentative in the first n_init frames
             # https://github.com/nwojke/deep_sort/issues/48
-            if not track.is_confirmed():  # or track.time_since_update > 1:
-                continue
+            if track.is_deleted():
+                del id2class[track.track_id]
+                del ds_id2gt_id[track.track_id]
+            if track.is_confirmed():
+                # is track.state == 3 aka deleted, remove from id2class
+                # change track bbox to top left, bottom right coordinates.
+                bbox = list(track.to_tlbr())
+                # if occluded (aka not detected in past X frames), use previous frame's class for given id
+                if track.time_since_update > 2:
+                    cls = id2class[track.track_id]
+                    conf = "occluded"
+                else:
+                    class_data = get_class_data(coords2classdata, bbox)
+                    cls, conf = class_data
+                    id2class[track.track_id] = cls
+                # format matches labels.txt
+                # but we set unknown_default for all values deepsort is not responsible for
+                data = {
+                    "frame": frame_idx,
+                    "track_id": track.track_id,
+                    "type": cls,
+                    "truncated": unknown_default,
+                    "occluded": unknown_default,
+                    "alpha": unknown_default,
+                    "bbox_left": int(bbox[0]),
+                    "bbox_top": int(bbox[1]),
+                    "bbox_right": int(bbox[2]),
+                    "bbox_bottom": int(bbox[3]),
+                    "height": unknown_default,
+                    "width": unknown_default,
+                    "length": unknown_default,
+                    "x": unknown_default,
+                    "y": unknown_default,
+                    "z": unknown_default,
+                    "yaw": unknown_default,
+                    "score": conf,
+                }
+                all_results.append(data)
+                frame_results.append(data)
+                # print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
+                if disp and not debug:
+                    frame = disp_track(frame, data)
 
-            # change track bbox to top left, bottom right coordinates.
-            bbox = list(track.to_tlbr())
-            class_data = get_class_data(coords2classdata, bbox)
-            cls, conf = class_data
-            # TODO (elle): calculate actual x,y,z values instead of hardcoding -1's
-            # format matches labels.txt
-            data = {
-                "frame": frame_idx,
-                "track_id": track.track_id,
-                "type": cls,
-                "truncated": unknown_default,
-                "occluded": unknown_default,
-                "alpha": unknown_default,
-                "bbox_left": int(bbox[0]),
-                "bbox_top": int(bbox[1]),
-                "bbox_right": int(bbox[2]),
-                "bbox_bottom": int(bbox[3]),
-                "height": unknown_default,
-                "width": unknown_default,
-                "length": unknown_default,
-                "x": unknown_default,
-                "y": unknown_default,
-                "z": unknown_default,
-                "yaw": unknown_default,
-                "score": conf,
-            }
-            all_results.append(data)
-            frame_results.append(data)
-            # print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
-            if disp:
-                frame = disp_track(frame, data)
-
-        if expected_df is not None:
+        if expected_df is not None and not debug:
             exp_frame = expected_df[expected_df["frame"] == frame_idx]
             for _, row in exp_frame.iterrows():
                 frame_gt = disp_track(frame_gt, row, color=(0, 255, 0))
 
         ids_used = set()
-        det_fails = 0
+        id_switches = []
         for res in frame_results:
             min_dist = 10000000
             min_exp = None
@@ -364,36 +378,60 @@ def execute(data_glob=None, model=None, save_path=None, disp=True, expected_df=N
                     if err < min_dist:
                         min_dist = err
                         min_exp = row
-                min_id = min_exp["track_id"]
+                exp_id = min_exp["track_id"]
                 if id not in ds_id2gt_id:
-                    ds_id2gt_id[id] = min_id
+                    ds_id2gt_id[id] = exp_id
                 else:
-                    if ds_id2gt_id[id] != min_id:
+                    if ds_id2gt_id[id] != exp_id:
                         print(
-                            f"WARNING: track id {id} already mapped to {ds_id2gt_id[id]}, but now mapping to {min_id}"
+                            f"WARNING ID-SWITCH?: track id {id} already mapped to {ds_id2gt_id[id]}, but now mapping to {exp_id}"
                         )
-                        ds_id2gt_id[id] = min_id
-                if min_id in ids_used:
-                    # print(f"WARNING: track id {min_id} already used for this frame")
-                    det_fails += 1
+                        id_switch_str = f"{id}ds: {ds_id2gt_id[id]}gt -> {exp_id}gt"
+                        id_switches.append(id_switch_str)
+                        if debug:
+                            frame = disp_track(frame, res)
+                            new_match = min_exp
+                            old_match = expected_df[expected_df["frame"] == frame_idx]
+                            old_match = old_match[
+                                old_match["track_id"] == ds_id2gt_id[id]
+                            ]
+                            old_match = old_match.to_dict("records")[0]
+                            frame_gt = disp_track(
+                                frame_gt, old_match, color=(0, 255, 0)
+                            )
+                            frame_gt = disp_track(
+                                frame_gt, new_match, color=(0, 255, 0)
+                            )
+                        ds_id2gt_id[id] = exp_id
+                if exp_id in ids_used:
+                    # print(f"WARNING: track id {exp_id} already used for this frame")
+                    # TODO (elle): if already mapped a DS id to this GT id, then we should check if the new DS id is closer to the GT id than the old one
+                    # and override it if so
+                    pass
                 else:
-                    ids_used.add(min_id)
-                # template = "{frame}: {track_id},{type},{bbox_left},{bbox_top},{bbox_right},{bbox_bottom}"
-                # res_fmt = template.format(**res)
-                # exp_fmt = template.format(**min_exp)
-                # print("res " + res_fmt)
-                # print("exp " + exp_fmt)
-                mismatch_fmt = f"{res['type']} -> {min_exp['type']} "
+                    ids_used.add(exp_id)
+                mismatch_fmt = f"{res['type']}ds -> {min_exp['type']}gt "
                 print(
-                    f"{frame_idx}: {id} -> {min_id}, {mismatch_fmt if res['type'] != min_exp['type'] else ''}with error {min_dist}, conf {res['score']}"
+                    f"{frame_idx}: {id} -> {exp_id}, {mismatch_fmt if res['type'] != min_exp['type'] else ''}with error {min_dist}, conf {res['score']}"
                 )
-        print(f"det_fails: {det_fails}")
-
-        # print(expected_df[expected_df["frame"] == frame_idx])
-        if disp:  # and frame_idx >= 51:
+        if expected_df is not None:
+            exp_frame = expected_df[expected_df["frame"] == frame_idx]
+            # get missed_detection (i.e. ground-truth ids we did not map any DS id to)
+            gt_ids = set(exp_frame["track_id"])
+            ds_ids = set(ds_id2gt_id.values())
+            missed_detection_ids = list(gt_ids - ds_ids)
+            missed_detections = []
+            for _, row in exp_frame.iterrows():
+                if row["track_id"] in missed_detection_ids:
+                    missed_detections.append((row["track_id"], row["type"]))
+                    if debug:
+                        frame_gt = disp_track(frame_gt, row, color=(0, 0, 255))
+            print(f"missed_detections {len(missed_detections)}: {missed_detections}")
+            print(f"id switched {len(id_switches)}: {id_switches}")
+        if disp:
             # show frame and frame_gt one on top of the other
             frame = np.concatenate((frame, frame_gt), axis=0)
-            cv2.imshow("YOLOv8 Inference", frame)
+            cv2.imshow("Deepsort", frame)
             # break the loop if 'q' is pressed
             if cv2.waitKey(0) & 0xFF == ord("q"):
                 break
@@ -411,18 +449,20 @@ if __name__ == "__main__":
     full_seq = f"{seq}/{subseq}"
     video_dir = "video_rect"
     expected_df = get_labels_df(f"data/{video_dir}/{seq}")
-    # 0000000027 - 0000000055
+    # 0000000027 - 0000000055 for occlusion test
     data_glob = f"data/{video_dir}/{full_seq}/data/*.png"
     # save_path = f"track_{seq}_{subseq}.txt"
     save_path = None
-    # model = "models/yolov8n.pt"
-    model = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/runs/detect/train2/weights/best.onnx"
+    detector_model_file = "models/yolov8n.pt"
+    # detector_model_file = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/runs/detect/train2/weights/best.onnx"
     disp = True
+    debug = False
     params = {
         "data_glob": data_glob,
         "save_path": save_path,
-        "model": model,
+        "detector_model_file": detector_model_file,
         "disp": disp,
         "expected_df": expected_df,
+        "debug": debug,
     }
     execute(**params)
