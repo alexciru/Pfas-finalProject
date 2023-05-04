@@ -76,9 +76,9 @@ def disp_track(frame, data, color=None, label_offset=0, expected=None):
 # we have to do this since the bbox from deepsort does not exactly match the bbox from yolo
 # even when rounding to nearest int
 # and the tracked objects are not necessarily in the detection order, so we also can't use order idx to match
-def get_class_data(coords2classdata, bbox):
+def get_obj_data(yolobbox2objdata, bbox):
     _bbox, class_data = min(
-        coords2classdata.items(), key=lambda x: math.dist(bbox, x[0])
+        yolobbox2objdata.items(), key=lambda x: math.dist(bbox, x[0])
     )
     return class_data
 
@@ -155,11 +155,11 @@ def execute(
 
     frame_paths = sorted(glob.glob(data_glob))
     new_frame_paths = []
-    # filter for paths that have number bet 27 and 55:
-    for path in frame_paths:
-        frame_num = int(path.split("/")[-1].split(".")[0])
-        if frame_num >= 25:
-            new_frame_paths.append(path)
+    # leave for debugging occlusions: started from frame 25
+    # for path in frame_paths:
+    #     frame_num = int(path.split("/")[-1].split(".")[0])
+    #     if frame_num >= 25:
+    #         new_frame_paths.append(path)
     frame_paths = new_frame_paths
     if len(frame_paths) == 0:
         print(f"No frames found at {data_glob}, exiting")
@@ -268,7 +268,7 @@ def execute(
         # detect only person, car, and bicycle
         detector_pred = detector(frame, classes=[0, 1, 2])
         bboxes = []
-        coords2classdata = {}
+        yolobbox2objdata = {}
         confs = []
         if detector_pred:
             boxes = detector_pred[0].boxes
@@ -279,7 +279,7 @@ def execute(
                 # box.xyxy is tlbr (top-left, bottom-right)
                 # convert from tensor to list
                 box = box.xyxy.tolist()[0]
-                coords2classdata[tuple(box)] = (cls, conf)
+                yolobbox2objdata[tuple(box)] = (cls, conf)
                 confs.append(conf)
                 top_left_x, top_left_y = box[0], box[1]
                 width = box[2] - box[0]
@@ -309,7 +309,6 @@ def execute(
                 del id2class[track.track_id]
                 del ds_id2gt_id[track.track_id]
             if track.is_confirmed():
-                # is track.state == 3 aka deleted, remove from id2class
                 # change track bbox to top left, bottom right coordinates.
                 bbox = list(track.to_tlbr())
                 # if occluded (aka not detected in past X frames), use previous frame's class for given id
@@ -317,7 +316,7 @@ def execute(
                     cls = id2class[track.track_id]
                     conf = "occluded"
                 else:
-                    class_data = get_class_data(coords2classdata, bbox)
+                    class_data = get_obj_data(yolobbox2objdata, bbox)
                     cls, conf = class_data
                     id2class[track.track_id] = cls
                 # format matches labels.txt
@@ -410,7 +409,7 @@ def execute(
                     pass
                 else:
                     ids_used.add(exp_id)
-                mismatch_fmt = f"{res['type']}ds -> {min_exp['type']}gt "
+                mismatch_fmt = f"{res['type']}_ds -> {min_exp['type']}_gt "
                 print(
                     f"{frame_idx}: {id} -> {exp_id}, {mismatch_fmt if res['type'] != min_exp['type'] else ''}with error {min_dist}, conf {res['score']}"
                 )
