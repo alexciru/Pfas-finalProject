@@ -1,5 +1,6 @@
 from registration import calculate_bounding_box, calculate_rotation_beetween_cluster, get_avg_point_pointCloud
 import open3d as o3d
+import numpy as np
 """
 Funtion to save the results of the object detection to a file
 Format:
@@ -48,12 +49,16 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
         # center location in camera coordinates
         # obtain from cluter, make a box and get the center
         avg_point = get_avg_point_pointCloud(cluster)
-        
+        box_corners = np.asarray(bbox.get_box_corners())
+        lower_corners = box_corners[0:4]
+        # compute the center point of the lower plane vertices
+        lower_center = np.mean(lower_corners, axis=0)
+
         # create bbox from cluster
         # convert to left hand coordinates for openCV
-        x = max_bound[0]
-        y = max_bound[1]
-        z = max_bound[2]
+        x = lower_center[0]
+        y = lower_center[1]
+        z = lower_center[2]
 
 
         # Obtain from clusterList2 with same index and obtain rotation of vector

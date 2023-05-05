@@ -173,7 +173,7 @@ def generate_pointCloud(disparity_map,color_img,  Q):
         # reflect on x axis 
         reflect_matrix = np.identity(3)
         reflect_matrix[0] *= -1
-        points = np.dot(points, reflect_matrix)
+        #points = np.dot(points, reflect_matrix)
         
         
         # extract colors from the image

@@ -6,7 +6,7 @@ import glob
 import matplotlib.pyplot as plt
 import pandas as pd
 import open3d as o3d
-
+from tqdm import tqdm
 from DephtStimation import semiGlobalMatchMap, get_Q_matrix, readAllColorMatrices
 from registration import get_labels_temp, ObtainListOfPontClouds
 from ResultSaving import write_results_to_file
@@ -21,8 +21,9 @@ def main():
     SEQ_03 = DATA_DIR + "\\seq_01"
 
     ############  values   ####################
-    n_frame1 = 0
     seq = SEQ_01
+    initial_fr = 0
+    final_fr = 0
     ###########################################
 
     ## Get the images
@@ -34,38 +35,38 @@ def main():
     left_images.sort()
     right_images.sort()
 
-
-    left_img1 = cv2.imread(left_images[n_frame1])
-    right_img1 = cv2.imread(right_images[n_frame1])
-   
-
-    n_frame2 = n_frame1 + 1
-    left_img2 = cv2.imread(left_images[n_frame2])
-    right_img2 = cv2.imread(right_images[n_frame2])
-
-
+    # Function to get the labels
     bb_boxes = get_labels_temp(SEQ_01)
-    Q = get_Q_matrix(left_img1.shape[:2])
-    ex_mat = np.array([[9.999838e-01, -5.012736e-03, -2.710741e-03, 5.989688e-02],
-                        [5.002007e-03, 9.999797e-01, -3.950381e-03, -1.367835e-03],
-                        [2.730489e-03, 3.936758e-03, 9.999885e-01, 4.637624e-03],
-                        [0,0,0,1]])
-
-
-    # get the filtered version of the disparity map
-    disparity_frame1, __ = semiGlobalMatchMap(left_img1, right_img1)
-    disparity_frame2, __ = semiGlobalMatchMap(left_img2, right_img2)
-
-
-    # Finnally the pointclouds
-    clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
-                                                            ,n_frame1, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q, ex_mat)
+    ## All the frames 
+    for n_frame in tqdm(range(0, len(left_images)-1)):
+    #for n_frame in tqdm(range(initial_fr, final_fr)):
+        
+        left_img1 = cv2.imread(left_images[n_frame])
+        right_img1 = cv2.imread(right_images[n_frame])
     
-    o3d.visualization.draw_geometries([clusterlist1[0], clusterlist1[1]] )
-    o3d.visualization.draw_geometries(cluster2_list)
 
-    
-    write_results_to_file(n_frame1, None, clusterlist1, cluster2_list, filename = "results.txt")
+        n_frame2 = n_frame + 1
+        left_img2 = cv2.imread(left_images[n_frame2])
+        right_img2 = cv2.imread(right_images[n_frame2])
+        
+        Q = get_Q_matrix(left_img1.shape[:2])
+        ex_mat = np.array([[9.999838e-01, -5.012736e-03, -2.710741e-03, 5.989688e-02],
+                            [5.002007e-03, 9.999797e-01, -3.950381e-03, -1.367835e-03],
+                            [2.730489e-03, 3.936758e-03, 9.999885e-01, 4.637624e-03],
+                            [0,0,0,1]])
+
+
+        # get the filtered version of the disparity map
+        disparity_frame1, __ = semiGlobalMatchMap(left_img1, right_img1)
+        disparity_frame2, __ = semiGlobalMatchMap(left_img2, right_img2)
+
+
+        # Finnally the pointclouds
+        clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
+                                                                ,n_frame, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q, ex_mat)
+
+        
+        write_results_to_file(n_frame, None, clusterlist1, cluster2_list, filename = "results.txt")
 
 
 if __name__ == "__main__":
