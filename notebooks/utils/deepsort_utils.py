@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Created by Jonathan Mikler on 05/May/23
-
+import numpy as np
+import ultralytics.yolo.utils.ops as yolo_utils
 
 LABELS_DICT = {
         0: "Pedestrian",
@@ -84,7 +85,18 @@ LABELS_DICT = {
         78: "hair drier",
         79: "toothbrush",
     }
-
 UNKNOWN_DEFAULT = "?"
+
+
+def resize_masks(masks, orig_shape):
+    # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image
+    masks = np.moveaxis(masks, 0, -1)
+    # rescale masks to original image dims
+    # per https://github.com/ultralytics/ultralytics/issues/561
+    masks = yolo_utils.scale_image(masks, orig_shape)
+    # rearrange masks back to (N, H, W) for visualization
+    masks = np.moveaxis(masks, -1, 0)
+    return masks
+
 if __name__ == '__main__':
     pass
