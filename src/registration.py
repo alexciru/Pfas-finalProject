@@ -257,7 +257,7 @@ def get_labels_temp(seq_dir_):
     print("TEMPORAL FUNTION WE USE THE ONE THAT IONY DID")
     print("TEMPORAL FUNTION WE USE THE ONE THAT IONY DID")
 
-    _labels_file = str(seq_dir_ + "\\labels.txt")
+    _labels_file = str(seq_dir_ / "labels.txt")
     headers = ['frame', 'track_id', 'type', 'truncated', 'occluded', 'alpha', 'bbox_left', 'bbox_top', 'bbox_right', 'bbox_bottom', 'height', 'width', 'length', 'x', 'y', 'z', 'yaw']
     return pd.read_csv(_labels_file, sep=' ', header=None, names=headers)
 

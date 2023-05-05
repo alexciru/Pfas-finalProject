@@ -3,6 +3,8 @@ import os
 import glob
 import numpy as np
 
+from utils.utils import ROOT_DIR
+
 """ This file contains the methods used for the depth estimation of the images.
     The methods are:
         - stereoBMMap
@@ -97,8 +99,7 @@ def readAllColorMatrices():
         matrices: all the relevant matrices for the colored images
     """    
 
-    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    CALIB_DIR = ROOT_DIR + "\\data\\final_project_2023_rect//calib_cam_to_cam.txt"
+    CALIB_DIR = ROOT_DIR / "\\data\\final_project_2023_rect//calib_cam_to_cam.txt"
 
     
     with open(CALIB_DIR, 'r') as f:
