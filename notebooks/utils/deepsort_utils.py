@@ -85,7 +85,6 @@ LABELS_DICT = {
         78: "hair drier",
         79: "toothbrush",
     }
-<<<<<<< HEAD
 UNKNOWN_DEFAULT = "?"
 
 
@@ -99,9 +98,5 @@ def resize_masks(masks, orig_shape):
     masks = np.moveaxis(masks, -1, 0)
     return masks
 
-=======
-
-UNKNOWN_DEFAULT = "?"
->>>>>>> 671b20318297ae4ec415a0f995590545e5e707f2
 if __name__ == '__main__':
     pass
