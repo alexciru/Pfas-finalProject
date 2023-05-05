@@ -91,19 +91,15 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
         cluster1 = cluster_list1[i]
         cluster2 = cluster_list2[i]
 
-        # Remove outliers
 
-        # remove outliers using standar deviation
-
-        # Cluster the point to remove the noise from the background
-  
+        # Cluster the point to remove the noise from the background  
         labels1 = cluster_BDscan(cluster1, eps=0.01, min_samples=100)
         labels2 = cluster_BDscan(cluster2, eps=0.01, min_samples=100)
 
+        # remove outliers stadistical approach
         #draw_labels_on_model(cluster1, labels1)
         #draw_labels_on_model(cluster2, labels2)
         
-
         # Get the biggest cluster 
         cluster1 = get_biggest_cluster(cluster1, labels1)
         cluster2 = get_biggest_cluster(cluster2, labels2)
@@ -111,14 +107,11 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
         # TODO: Alex - this is not relevant anymore
         cluster1 = remove_outliers_from_pointCloud(cluster1)
         cluster2 = remove_outliers_from_pointCloud(cluster2)
-        
 
         # Calculate the vector of translation
         post_cluster1_list.append(cluster1)
         post_cluster2_list.append(cluster2)
         
-        translation = calculate_translation_AvgPoint(cluster1, cluster2)
-        translation_list.append(translation)
 
     # The clusters list should be in order with the IDs from DeepSORT
     # so the index i in the list correspond to the same object in both frames and with the translation vector

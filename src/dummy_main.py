@@ -62,10 +62,13 @@ def main():
 
 
         # Finnally the pointclouds
-        clusterlist1, cluster2_list, translation = ObtainListOfPontClouds(disparity_frame1
+        clusterlist1, cluster2_list = ObtainListOfPontClouds(disparity_frame1
                                                                 ,n_frame, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q, ex_mat)
 
-        
+        # Plot the resutls
+        # o3d.visualization.draw_geometries(clusterlist1)
+        # o3d.visualization.draw_geometries(cluster2_list)
+
         write_results_to_file(n_frame, None, clusterlist1, cluster2_list, filename = "results.txt")
 
 
