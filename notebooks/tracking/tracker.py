@@ -463,7 +463,7 @@ if __name__ == "__main__":
     # save_path = f"track_{seq}_{subseq}.txt"
     save_path = None
     # detector_model_file = "models/yolov8n.pt"
-    detector_model_file = "yolov8s-seg.pt"
+    detector_model_file = "models/yolov8s-seg.pt"
     # detector_model_file = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/runs/detect/train2/weights/best.onnx"
     disp = True
     debug = False
