@@ -4,7 +4,23 @@ import os, pathlib, sys
 import cv2 as cv
 import pandas as pd
 
-ROOT_DIR = pathlib.Path(os.getcwd()).parent
+# root file has .git folder in it
+def get_root_dir():
+    """
+    returns the root directory of the project, by checking for the .git folder
+    :return: root directory (pathlib.Path)
+    """
+    _root = pathlib.Path(os.getcwd()).parent
+    # check if _root has .git folder
+    while not os.path.isdir(_root / ".git"):
+        _root = _root.parent
+        if _root == pathlib.Path("/"):
+            raise FileNotFoundError("Could not find root directory")
+        
+    print(f"Root directory is {_root}")
+    return _root
+ROOT_DIR = get_root_dir()
+
 DATA_DIR = ROOT_DIR / "data/ground_truth"
 SEQ_01 = DATA_DIR / "seq_01"
 SEQ_02 = DATA_DIR / "seq_01"
