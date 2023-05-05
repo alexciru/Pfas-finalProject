@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from ultralytics import YOLO
-import math
 import pandas as pd
 import numpy as np
 
@@ -70,17 +69,6 @@ def disp_track(frame, data, color=None, label_offset=0, expected=None):
         font_thickness,
     )
     return frame
-
-
-# gets value of closest key to bbox
-# we have to do this since the bbox from deepsort does not exactly match the bbox from yolo
-# even when rounding to nearest int
-# and the tracked objects are not necessarily in the detection order, so we also can't use order idx to match
-def get_obj_data(yolobbox2objdata, bbox):
-    _bbox, class_data = min(
-        yolobbox2objdata.items(), key=lambda x: math.dist(bbox, x[0])
-    )
-    return class_data
 
 
 def get_labels_df(seq_dir_):
@@ -294,11 +282,7 @@ def execute(
 
         # get appearance features for all objects within the bboxes
         features = encoder(frame, bboxes)
-        # Detection is basically just a wrapper around bbox, conf, and feature
-        # detections = [
-        #     Detection(bbox, conf, feature)
-        #     for (bbox, cls, conf, segmentation), feature in zip(objs_info, features)
-        # ]
+        # Detection is just a wrapper for bbox + other info we want to keep track of
         detections = []
         for obj_info, feature in zip(objs_info, features):
             bbox, cls, conf, segmentation = obj_info
@@ -308,7 +292,7 @@ def execute(
         tracker.update(detections)
         print()
         frame_results = []
-        # get track info (bounding boxes, etc)
+        # process/save track info like bbox, class, etc
         for track in tracker.tracks:
             # track can be tentative (recently created, needs more evidence aka associations in n_init+1 frames),
             # confirmed (associated for n_init+1 or more frames), or deleted (no longer tracked)
@@ -325,8 +309,7 @@ def execute(
                     cls = id2class[track.track_id]
                     conf = "occluded"
                 else:
-                    class_data = get_obj_data(yolobbox2objdata, bbox)
-                    cls, conf = class_data
+                    cls, conf = track.get_class(), track.get_confidence()
                     id2class[track.track_id] = cls
                 # format matches labels.txt
                 # but we set unknown_default for all values deepsort is not responsible for
