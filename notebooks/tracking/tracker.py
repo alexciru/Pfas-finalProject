@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from ultralytics import YOLO
+from ultralytics.yolo.utils.ops import scale_image
 import pandas as pd
 import numpy as np
 
@@ -99,6 +100,18 @@ def get_labels_df(seq_dir_):
         "yaw",
     ]
     return pd.read_csv(_labels_file, sep=" ", header=None, names=headers)
+
+
+# resizes masks to original frame size
+def resize_masks(masks, orig_shape):
+    # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image
+    masks = np.moveaxis(masks, 0, -1)
+    # rescale masks to original image dims
+    # per https://github.com/ultralytics/ultralytics/issues/561
+    masks = scale_image(masks, orig_shape)
+    # rearrange masks back to (N, H, W) for visualization
+    masks = np.moveaxis(masks, -1, 0)
+    return masks
 
 
 def execute(
@@ -255,14 +268,17 @@ def execute(
 
         # TODO: filter by confidence?
         # detect only person, car, and bicycle
-        detector_pred = detector(frame, classes=[0, 1, 2])
+        detector_pred = detector(frame, classes=[0, 1, 2])[0]
         bboxes = []
         yolobbox2objdata = {}
         confs = []
         objs_info = []
         if detector_pred:
-            boxes = detector_pred[0].boxes
-            for box in boxes:
+            boxes = detector_pred.boxes
+            masks = resize_masks(
+                detector_pred.masks.data.numpy(), detector_pred.masks.orig_shape
+            )
+            for box, mask in zip(boxes, masks):
                 conf = float(box.conf[0])
                 cls_val = int(box.cls[0])
                 cls = val2class[cls_val]
@@ -277,8 +293,8 @@ def execute(
                 bbox = [top_left_x, top_left_y, width, height]
                 bboxes.append(bbox)
                 # TODO: get segmentation pixels
-                segmentation = None
-                objs_info.append((bbox, cls, conf, segmentation))
+                mask = mask.astype(np.bool)
+                objs_info.append((bbox, cls, conf, mask))
 
         # get appearance features for all objects within the bboxes
         features = encoder(frame, bboxes)
@@ -311,6 +327,7 @@ def execute(
                 else:
                     cls, conf = track.get_class(), track.get_confidence()
                     id2class[track.track_id] = cls
+                mask = track.get_segmentation()
                 # format matches labels.txt
                 # but we set unknown_default for all values deepsort is not responsible for
                 data = {
@@ -338,6 +355,7 @@ def execute(
                 # print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
                 if disp and not debug:
                     frame = disp_track(frame, data)
+                    frame[mask] = (0, 255, 0)
 
         if expected_df is not None and not debug:
             exp_frame = expected_df[expected_df["frame"] == frame_idx]
@@ -444,7 +462,8 @@ if __name__ == "__main__":
     data_glob = f"data/{video_dir}/{full_seq}/data/*.png"
     # save_path = f"track_{seq}_{subseq}.txt"
     save_path = None
-    detector_model_file = "models/yolov8n.pt"
+    # detector_model_file = "models/yolov8n.pt"
+    detector_model_file = "yolov8s-seg.pt"
     # detector_model_file = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/runs/detect/train2/weights/best.onnx"
     disp = True
     debug = False
