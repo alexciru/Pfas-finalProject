@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from ultralytics import YOLO
-import math
+from ultralytics.yolo.utils.ops import scale_image
 import pandas as pd
 import numpy as np
 
@@ -14,7 +14,7 @@ ROOT = local_parent.parents[0].parents[0]  # root directory.
 from deep_sort.deep_sort import nn_matching
 from deep_sort.deep_sort.detection import Detection
 from deep_sort.deep_sort.tracker import Tracker
-from deep_sort.tools import generate_detections as gdet
+from deep_sort.tools import generate_detections
 
 import cv2
 import glob
@@ -72,17 +72,6 @@ def disp_track(frame, data, color=None, label_offset=0, expected=None):
     return frame
 
 
-# gets value of closest key to bbox
-# we have to do this since the bbox from deepsort does not exactly match the bbox from yolo
-# even when rounding to nearest int
-# and the tracked objects are not necessarily in the detection order, so we also can't use order idx to match
-def get_obj_data(yolobbox2objdata, bbox):
-    _bbox, class_data = min(
-        yolobbox2objdata.items(), key=lambda x: math.dist(bbox, x[0])
-    )
-    return class_data
-
-
 def get_labels_df(seq_dir_):
     """
     returns the labels (ground truth data) of the given sequence as a pandas dataframe
@@ -113,6 +102,18 @@ def get_labels_df(seq_dir_):
     return pd.read_csv(_labels_file, sep=" ", header=None, names=headers)
 
 
+# resizes masks to original frame size
+def resize_masks(masks, orig_shape):
+    # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image
+    masks = np.moveaxis(masks, 0, -1)
+    # rescale masks to original image dims
+    # per https://github.com/ultralytics/ultralytics/issues/561
+    masks = scale_image(masks, orig_shape)
+    # rearrange masks back to (N, H, W) for visualization
+    masks = np.moveaxis(masks, -1, 0)
+    return masks
+
+
 def execute(
     data_glob=None,
     detector_model_file=None,
@@ -132,7 +133,8 @@ def execute(
     if save_path:
         save_path = local_parent / f"results/{save_path}"
 
-    encoder = gdet.create_box_encoder(deepsort_model_file, batch_size=1)
+    # encoder is what
+    encoder = generate_detections.create_box_encoder(deepsort_model_file, batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget
     )
@@ -266,13 +268,17 @@ def execute(
 
         # TODO: filter by confidence?
         # detect only person, car, and bicycle
-        detector_pred = detector(frame, classes=[0, 1, 2])
+        detector_pred = detector(frame, classes=[0, 1, 2])[0]
         bboxes = []
         yolobbox2objdata = {}
         confs = []
+        objs_info = []
         if detector_pred:
-            boxes = detector_pred[0].boxes
-            for box in boxes:
+            boxes = detector_pred.boxes
+            masks = resize_masks(
+                detector_pred.masks.data.numpy(), detector_pred.masks.orig_shape
+            )
+            for box, mask in zip(boxes, masks):
                 conf = float(box.conf[0])
                 cls_val = int(box.cls[0])
                 cls = val2class[cls_val]
@@ -286,20 +292,23 @@ def execute(
                 height = box[3] - box[1]
                 bbox = [top_left_x, top_left_y, width, height]
                 bboxes.append(bbox)
+                # TODO: get segmentation pixels
+                mask = mask.astype(np.bool)
+                objs_info.append((bbox, cls, conf, mask))
 
-        # get appearance features of the object.
+        # get appearance features for all objects within the bboxes
         features = encoder(frame, bboxes)
-        # get all the required info in a list.
-        detections = [
-            Detection(bbox, conf, feature)
-            for bbox, conf, feature in zip(bboxes, confs, features)
-        ]
+        # Detection is just a wrapper for bbox + other info we want to keep track of
+        detections = []
+        for obj_info, feature in zip(objs_info, features):
+            bbox, cls, conf, segmentation = obj_info
+            detections.append(Detection(bbox, feature, cls, conf, segmentation))
         # predict tracks
         tracker.predict()
         tracker.update(detections)
         print()
         frame_results = []
-        # get track info (bounding boxes, etc)
+        # process/save track info like bbox, class, etc
         for track in tracker.tracks:
             # track can be tentative (recently created, needs more evidence aka associations in n_init+1 frames),
             # confirmed (associated for n_init+1 or more frames), or deleted (no longer tracked)
@@ -316,9 +325,9 @@ def execute(
                     cls = id2class[track.track_id]
                     conf = "occluded"
                 else:
-                    class_data = get_obj_data(yolobbox2objdata, bbox)
-                    cls, conf = class_data
+                    cls, conf = track.get_class(), track.get_confidence()
                     id2class[track.track_id] = cls
+                mask = track.get_segmentation()
                 # format matches labels.txt
                 # but we set unknown_default for all values deepsort is not responsible for
                 data = {
@@ -346,6 +355,7 @@ def execute(
                 # print(f"id: {track.track_id}, frame: {frame_idx}, cls: {cls}, box: {bbox}")
                 if disp and not debug:
                     frame = disp_track(frame, data)
+                    frame[mask] = (0, 255, 0)
 
         if expected_df is not None and not debug:
             exp_frame = expected_df[expected_df["frame"] == frame_idx]
@@ -452,7 +462,8 @@ if __name__ == "__main__":
     data_glob = f"data/{video_dir}/{full_seq}/data/*.png"
     # save_path = f"track_{seq}_{subseq}.txt"
     save_path = None
-    detector_model_file = "models/yolov8n.pt"
+    # detector_model_file = "models/yolov8n.pt"
+    detector_model_file = "yolov8s-seg.pt"
     # detector_model_file = "/Users/ellemcfarlane/Documents/dtu/Perception_AF/Pfas/final_project/runs/detect/train2/weights/best.onnx"
     disp = True
     debug = False
