@@ -3,6 +3,8 @@ import os
 import numpy as np
 import time
 import threading
+import cv2
+from PIL import Image
 
 def main():
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -21,6 +23,15 @@ def main():
     labels = seq + "\\labels.txt"
     frame = 0 # starting frame 0
     # read the file
+    img = Image.open(seq + "\\image_02\\data\\000000.png")
+    img_data = np.array(img).astype(np.float32) / 255.0
+    img_data = np.flipud(img_data)
+    texture = o3d.geometry.Image(img_data)
+
+    aspect_ratio = img.width / img.height
+    plane = o3d.geometry.TriangleMesh.create_box(width=aspect_ratio, height=1, depth=0)
+    plane.textures = [texture]
+    plane.triangle_uvs = [[0, 1, 2]]
 
     # FIXED THE CAMERA
     ctr = vis.get_view_control()
@@ -65,11 +76,12 @@ def main():
                     # for each line create a bounding box and add it to the list
                 else:
                     ctr.convert_from_pinhole_camera_parameters(parameters)
+                    vis.add_geometry(plane)
                     for o in objects:
                         vis.add_geometry(o)
                     
                     # update the view
-                    for i in range(10):
+                    for i in range(100):
                         vis.update_renderer()
                         vis.poll_events()
                         time.sleep(0.01)
