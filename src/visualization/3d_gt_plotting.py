@@ -24,12 +24,14 @@ def render_image_with_boxes(img, objects, calib, frame, time=10):
 
 
 if __name__ == '__main__':
-    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     # Load calibration
     calib = readProjectionMatrices(ROOT_DIR + '/data/final_project_2023_rect/calib_cam_to_cam.txt')
     # Load labels
     labels = load_label(ROOT_DIR + '/data/final_project_2023_rect/seq_01/labels.txt')
     labels = load_label(ROOT_DIR + '/results.txt')
+    if(len(labels)==0):
+        print("No labels loaded")
     labels = sortLabels(labels)
     # Load images
     images = glob.glob(ROOT_DIR + '/data/final_project_2023_rect/seq_01/image_02/data/*.png')
