@@ -54,7 +54,7 @@ def display_inlier_outlier(cloud, ind):
                                       up=[-0.0694, -0.9768, 0.2024])
 
 
-def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q, P2_rec):
+def ObtainListOfPontClouds(disparity_frame1,n_frame1, left_img1, bb_boxes, Q, P2_rec):
     """    
     This is the main function of the algorithm. It takes the disparity maps of two frames and the bounding boxes
     parameters:
@@ -70,31 +70,23 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
     # Get list of objects from both frames
     bb1 =  bb_boxes[bb_boxes['frame'] == n_frame1]
     cluster_list1 = extract_objects_point_clouds(disparity_frame1, left_img1,  bb1, Q, P2_rec)
-    bb2 =  bb_boxes[bb_boxes['frame'] == n_frame2]
-    cluster_list2 = extract_objects_point_clouds(disparity_frame2, left_img2,  bb2, Q, P2_rec)
 
     # plot the point clouds
     #o3d.visualization.draw_geometries(cluster_list1)
     #o3d.visualization.draw_geometries(cluster_list2)
     
-    # Get the clusters that are in both frames
-    n_matches = min(len(cluster_list1), len(cluster_list2))
 
     post_cluster1_list = []
-    post_cluster2_list = []
-    translation_list = []
     # Get the clusters that are in both frames
     # TODO: match the clusters using the ID from DeepSORT
-    for i in range(n_matches):
+    for i in range(len(cluster_list1)):
 
         # get clusters with same ID
         cluster1 = cluster_list1[i]
-        cluster2 = cluster_list2[i]
 
 
         # Cluster the point to remove the noise from the background  
         labels1 = cluster_BDscan(cluster1, eps=0.01, min_samples=100)
-        labels2 = cluster_BDscan(cluster2, eps=0.01, min_samples=100)
 
         # remove outliers stadistical approach
         #draw_labels_on_model(cluster1, labels1)
@@ -102,21 +94,19 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, disparity_frame2, n_frame2
         
         # Get the biggest cluster 
         cluster1 = get_biggest_cluster(cluster1, labels1)
-        cluster2 = get_biggest_cluster(cluster2, labels2)
     
         # TODO: Alex - this is not relevant anymore
         cluster1 = remove_outliers_from_pointCloud(cluster1)
-        cluster2 = remove_outliers_from_pointCloud(cluster2)
 
         # Calculate the vector of translation
         post_cluster1_list.append(cluster1)
-        post_cluster2_list.append(cluster2)
+
         
 
     # The clusters list should be in order with the IDs from DeepSORT
     # so the index i in the list correspond to the same object in both frames and with the translation vector
     # in the list
-    return post_cluster1_list, post_cluster2_list, translation_list
+    return post_cluster1_list
 
 
 def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q, ex_mat):
@@ -292,7 +282,6 @@ def write_ply(fn, verts, colors):
             np.savetxt(f, verts, fmt='%f %f %f %d %d %d ')
 
 
-# small main to test the module
 
 if __name__ == "__main__":
     pass

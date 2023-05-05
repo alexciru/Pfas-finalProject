@@ -62,14 +62,17 @@ def main():
 
 
         # Finnally the pointclouds
-        clusterlist1, cluster2_list = ObtainListOfPontClouds(disparity_frame1
-                                                                ,n_frame, disparity_frame2, n_frame2,left_img1, left_img2, bb_boxes, Q, ex_mat)
+        clusterlist1 = ObtainListOfPontClouds(disparity_frame1, n_frame, left_img1, bb_boxes, Q, ex_mat)
 
+        # TODO: no need to compute the clusters again if was computer in the previous frame
+        clusterlist2 = ObtainListOfPontClouds(disparity_frame2, n_frame+1, left_img2, bb_boxes, Q, ex_mat)
+        
+        
         # Plot the resutls
-        # o3d.visualization.draw_geometries(clusterlist1)
+        o3d.visualization.draw_geometries(clusterlist1)
         # o3d.visualization.draw_geometries(cluster2_list)
 
-        write_results_to_file(n_frame, None, clusterlist1, cluster2_list, filename = "results.txt")
+        write_results_to_file(n_frame, None, clusterlist1, clusterlist2, filename = "results.txt")
 
 
 if __name__ == "__main__":

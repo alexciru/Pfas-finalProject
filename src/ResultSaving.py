@@ -49,7 +49,7 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
         # center location in camera coordinates
         # obtain from cluter, make a box and get the center
         avg_point = get_avg_point_pointCloud(cluster)
-        box_corners = np.asarray(bbox)
+        box_corners = bbox.get_box_points()
         lower_corners = box_corners[0:4]
         # compute the center point of the lower plane vertices
         lower_center = np.mean(lower_corners, axis=0)
