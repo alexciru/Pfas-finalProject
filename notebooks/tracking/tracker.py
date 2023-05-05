@@ -14,7 +14,7 @@ ROOT = local_parent.parents[0].parents[0]  # root directory.
 from deep_sort.deep_sort import nn_matching
 from deep_sort.deep_sort.detection import Detection
 from deep_sort.deep_sort.tracker import Tracker
-from deep_sort.tools import generate_detections as gdet
+from deep_sort.tools import generate_detections
 
 import cv2
 import glob
@@ -132,7 +132,8 @@ def execute(
     if save_path:
         save_path = local_parent / f"results/{save_path}"
 
-    encoder = gdet.create_box_encoder(deepsort_model_file, batch_size=1)
+    # encoder is what
+    encoder = generate_detections.create_box_encoder(deepsort_model_file, batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget
     )
@@ -270,6 +271,7 @@ def execute(
         bboxes = []
         yolobbox2objdata = {}
         confs = []
+        objs_info = []
         if detector_pred:
             boxes = detector_pred[0].boxes
             for box in boxes:
@@ -286,14 +288,21 @@ def execute(
                 height = box[3] - box[1]
                 bbox = [top_left_x, top_left_y, width, height]
                 bboxes.append(bbox)
+                # TODO: get segmentation pixels
+                segmentation = None
+                objs_info.append((bbox, cls, conf, segmentation))
 
-        # get appearance features of the object.
+        # get appearance features for all objects within the bboxes
         features = encoder(frame, bboxes)
-        # get all the required info in a list.
-        detections = [
-            Detection(bbox, conf, feature)
-            for bbox, conf, feature in zip(bboxes, confs, features)
-        ]
+        # Detection is basically just a wrapper around bbox, conf, and feature
+        # detections = [
+        #     Detection(bbox, conf, feature)
+        #     for (bbox, cls, conf, segmentation), feature in zip(objs_info, features)
+        # ]
+        detections = []
+        for obj_info, feature in zip(objs_info, features):
+            bbox, cls, conf, segmentation = obj_info
+            detections.append(Detection(bbox, feature, cls, conf, segmentation))
         # predict tracks
         tracker.predict()
         tracker.update(detections)
