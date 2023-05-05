@@ -9,7 +9,8 @@ __pycache__/
 
 # exclude data from source control
 data/
-
+# symlink
+data
 
 
 # python
