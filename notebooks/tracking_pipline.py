@@ -3,16 +3,13 @@
 
 import numpy as np
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import Dict
 from ultralytics import YOLO
-from dataclasses import dataclass
 
-from tracking.deep_sort.application_util import preprocessing
 from tracking.deep_sort.deep_sort import nn_matching
 from tracking.deep_sort.deep_sort.detection import Detection
 from tracking.deep_sort.deep_sort.tracker import Tracker, Track
 from tracking.deep_sort.tools import generate_detections as gdet
-
 
 # own
 from utils.utils import (SEQ_01, SEQ_02, SEQ_03, get_root_dir, get_frames)
@@ -20,7 +17,6 @@ from utils.deepsort_utils import (LABELS_DICT,
                                   UNKNOWN_DEFAULT,
                                   DeepSortObject,
                                   resize_masks)
-
 
 
 def get_tracking_devices(yolo_model_:Path, deepsort_model_:Path):
@@ -31,13 +27,15 @@ def get_tracking_devices(yolo_model_:Path, deepsort_model_:Path):
 
     encoder = gdet.create_box_encoder(deepsort_model_, batch_size=1)
     _metric = nn_matching.NearestNeighborDistanceMetric("cosine", 0.4, None)
-    tracker = Tracker(_metric, n_init=0)
+    tracker = Tracker(_metric, n_init=1)
     detector = YOLO(yolo_model_)
 
     return encoder, tracker, detector
 
 def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, frame_l_:np.ndarray)-> Dict[int, DeepSortObject]:
+    
     _detections_t = detector_(frame_l_, classes=[0, 1, 2]) # Output: List of objects (one per detection in frame)
+    _detections_t = _detections_t[0]
     _masks_t = resize_masks(masks=_detections_t.masks.data.numpy(),orig_shape=_detections_t.masks.orig_shape)
 
     if not _detections_t: return None # TODO: Handle this in main
@@ -45,7 +43,7 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
     _OCLUSSION_THRESHOLD = 2 # timestep duration of an object not being detected before we consider it occluded
 
     dsobjects_t = []
-    for _det, _maks in zip(_detections_t.boxes, _masks_t): # QUESTION: masks are not taken from yolo but from tracker later, do we need this one?
+    for _det, _maks in zip(_detections_t.boxes, _masks_t):
         cls = int(_det.cls[0])
         # NOTE: I'm overriding id to match "class_id" aka 0,1,etc for label
         # another note: we can't create the DeepSortObject ahead of time like this
@@ -59,8 +57,7 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
             label=LABELS_DICT.get(int(cls), UNKNOWN_DEFAULT),
             confidence=float(_det.conf[0]),
             xyxy = _det.xyxy.tolist()[0],
-            mask = None
-            # mask =_maks.astype(bool)
+            mask =_maks.astype(bool)
         )
         
         dsobjects_t.append(_dso)
@@ -85,11 +82,14 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
     for track in tracker_.tracks:
         # goes over all tracked objects EVER (not just in current frame)
         # we filter for the ones detected in current with the .time_since_update check
-        if not track.is_confirmed():
+        if not track.is_tentative():
             # track can be tentative (recently created, needs more evidence aka associations in n_init+1 frames),
             # confirmed (associated for n_init+1 or more frames), or deleted (no longer tracked)
             # a new object is classified as tentative in the first n_init frames
             # https://github.com/nwojke/deep_sort/issues/48
+            print(f"Track {track.track_id} is tentative")
+            print(track)
+
             continue
 
         # if occluded (aka not detected in past X frames), use previous frame's class for given id
@@ -99,17 +99,15 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
         else:
             conf = track.get_confidence()
 
-        bbox = list(track.to_tlbr()) # QUESTION: is this needed, the conversion? The variable is unused
-
         ds_objects[track.track_id] = DeepSortObject(
             id=track.track_id,
             label=LABELS_DICT.get(int(track.get_class()), UNKNOWN_DEFAULT),
             confidence=conf,
-            xyxy=_det.xyxy.tolist()[0], # QUESTION: the slight difference betwwen bboxes of yolo and ds means that this is the correct bbox to give?
+            xyxy=list(track.to_tlbr()),
             mask=track.get_segmentation().astype(bool)
         )
 
-        return ds_objects
+    return ds_objects
 
 
 def main():
