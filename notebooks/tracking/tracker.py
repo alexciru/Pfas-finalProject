@@ -125,6 +125,7 @@ def execute(
     # deepsort
     # distance used for obj similarity (helps decide if two objects are the same)
     # higher the value, easier it is to think two objects are the same
+    # "Samples with larger distance [than max] are considered an invalid match."
     max_cosine_distance = 0.6
     # max_cosine_distance = 1.0
     nn_budget = None
