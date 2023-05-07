@@ -1,4 +1,4 @@
-from registration import calculate_bounding_box, calculate_rotation_beetween_cluster, get_avg_point_pointCloud
+from final_project.src.depth.registration import calculate_bounding_box, calculate_rotation_beetween_cluster, get_avg_point_pointCloud
 import open3d as o3d
 import numpy as np
 """

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import open3d as o3d
 from tqdm import tqdm
-from DephtStimation import semiGlobalMatchMap, get_Q_matrix, readAllColorMatrices
-from registration import get_labels_temp, ObtainListOfPontClouds
+from Depth.DephtEstimation import semiGlobalMatchMap, get_Q_matrix, readAllColorMatrices
+from final_project.src.depth.registration import get_labels_temp, ObtainListOfPontClouds
 from ResultSaving import write_results_to_file
 
 from utils.utils import get_frames, SEQ_01
