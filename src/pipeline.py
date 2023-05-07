@@ -119,12 +119,13 @@ def main():
     print("\n--- Starting pipeline ---")
 
     # global variables
-    FRAMES = [(_l, _r) for _l, _r in [get_frames(frame_num_=i, seq_dir_=SEQ_01) for i in range(2)]] #TODO: implement get_frames()
+    FRAMES = [(_l, _r) for _l, _r in [get_frames(frame_num_=i, seq_dir_=SEQ_01) for i in range(2)]]
 
     KINEMATIC_PREDICTION = True # True if prediction by DeepSort
     DS_PREDICTION = not KINEMATIC_PREDICTION # True if prediction by kinematics
 
     # disparity map and 3d reconstruction variables
+    MIN_PCD_SIZE = 1000 # minimum number of points in a pointcloud to be considered valid
     Q = depth_est.get_Q_matrix(FRAMES[0][0].shape[:2], DATA_DIR / "calib_cam_to_cam.txt")
 
     # dynamic variables
@@ -174,7 +175,7 @@ def main():
         # 3. reconstruct objects in 3D
         # TODO: Creating the pcs here as a list looses track of which ps belongs to which ds_object. pc creating needs to be done at the ds_object level
         _obj_masks = [_obj.mask for _obj in _objs_to_reconstruct_t]
-        _obj_pointclouds_t = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, _obj_masks, Q)
+        _obj_pointclouds_t = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, _obj_masks, Q, MIN_PCD_SIZE)
 
         o3d.visualization.draw_geometries(_obj_pointclouds_t, window_name=f"Frame {_frame_t}")
 

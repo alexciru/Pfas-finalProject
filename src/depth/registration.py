@@ -1,14 +1,11 @@
+import copy
 import numpy as np
-import os
 import cv2
-import os
 from typing import List, Tuple, Dict
-import glob
 import matplotlib.pyplot as plt
 import pandas as pd
 import open3d as o3d
 from sklearn.cluster import DBSCAN
-import copy
 from collections import Counter
 
 """
@@ -28,7 +25,6 @@ based on the disparity maps and the camera parameters. The algorithm is the foll
 
 """
 
-MIN_PCD_SIZE = 3000
 
 def draw_labels_on_model(pcl, labels):
     """ Recives a point cloud and a list of labels and plot the point cloud with the labels as colors"""
@@ -55,7 +51,7 @@ def display_inlier_outlier(cloud, ind):
                                       lookat=[2.6172, 2.0475, 1.532],
                                       up=[-0.0694, -0.9768, 0.2024])
 
-def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_masks_:List[np.ndarray], Q:np.ndarray):
+def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_masks_:List[np.ndarray], Q:np.ndarray, min_pcd_size_:int) -> List[o3d.geometry.PointCloud]:
 
     # Get list of objects from both frames
     _objs_pointclouds = make_pointclouds_from_masks(disparity_frame_, img_,  obj_masks_, Q)
@@ -73,7 +69,7 @@ def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_mas
         _pcd = remove_outliers_from_pointCloud(_pcd)
 
         # Calculate the vector of translation
-        if len(_pcd.points) > MIN_PCD_SIZE:
+        if len(_pcd.points) > min_pcd_size_:
             post_cluster1_list.append(_pcd)
 
     return post_cluster1_list
