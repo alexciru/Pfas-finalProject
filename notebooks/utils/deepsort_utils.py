@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # Created by Jonathan Mikler on 05/May/23
 import numpy as np
+from typing import List, Tuple, Dict
+from dataclasses import dataclass
 import ultralytics.yolo.utils.ops as yolo_utils
 
 LABELS_DICT = {
@@ -87,6 +89,27 @@ LABELS_DICT = {
 }
 UNKNOWN_DEFAULT = "?"
 
+@dataclass
+class DeepSortObject():
+    id: int
+    label: str
+    confidence: float # -1 means occluded
+    xyxy: List[float]
+    mask: np.ndarray
+
+    @property
+    def occluded(self):
+        return self.confidence == -1
+
+    @property
+    def tlwh(self):
+        """
+        Top left corner, width, height representation of bounding box
+        """
+        top_left_x, top_left_y = self.xyxy[0], self.xyxy[1]
+        width = self.xyxy[2] - self.xyxy[0]
+        height = self.xyxy[3] - self.xyxy[1]
+        return [top_left_x, top_left_y, width, height]
 
 def resize_masks(masks, orig_shape):
     # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image

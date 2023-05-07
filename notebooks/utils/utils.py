@@ -11,7 +11,7 @@ def get_root_dir():
     returns the root directory of the project, by checking for the .git folder
     :return: root directory (pathlib.Path)
     """
-    _root = pathlib.Path(os.getcwd()).parent
+    _root = pathlib.Path(__file__).parent
     # check if _root has .git folder
     while not os.path.isdir(_root / ".git"):
         _root = _root.parent
@@ -37,8 +37,8 @@ def get_frames(frame_num_, seq_dir_):
     :param seq_dir_: sequence directory (pathlib.Path)
     :return: right and left frame (np.ndarray, np.ndarray)
     """
-    _frame_name_r = str(seq_dir_ / "image_02/data" / f"{frame_num_:06d}.png")
-    _frame_name_l = str(seq_dir_ / "image_03/data" / f"{frame_num_:06d}.png")
+    _frame_name_r = str(seq_dir_ / "image_02/data" / f"{frame_num_:010d}.png")
+    _frame_name_l = str(seq_dir_ / "image_03/data" / f"{frame_num_:010d}.png")
 
     if not os.path.isfile(_frame_name_r):
         raise FileNotFoundError(f"File {_frame_name_r} not found")
