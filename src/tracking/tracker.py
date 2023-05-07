@@ -19,7 +19,7 @@ from deep_sort.tools import generate_detections
 import cv2
 import glob
 
-from utils.utils import get_root_dir
+from utils.utils import _get_root_dir
 
 
 # writes deepsort tracking id, bounding box, and class to frame
@@ -132,7 +132,7 @@ def execute(
     # max_cosine_distance = 1.0
     nn_budget = None
 
-    _ROOT = get_root_dir()
+    _ROOT = _get_root_dir()
         
         
     # deepsort_model_file = local_parent / "networks/mars-small128.pb"

@@ -12,7 +12,7 @@ from tracking.deep_sort.deep_sort.tracker import Tracker
 from tracking.deep_sort.tools import generate_detections as gdet
 
 # own
-from utils.utils import (SEQ_01, SEQ_02, SEQ_03, get_root_dir, get_frames)
+from utils.utils import (SEQ_01, SEQ_02, SEQ_03, _get_root_dir, get_frames)
 from utils.deepsort_utils import (LABELS_DICT, 
                                   UNKNOWN_DEFAULT,
                                   DeepSortObject,
@@ -112,7 +112,7 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
 def main():
     print("\n--- Starting tracking pipeline ---")
 
-    _ROOT = get_root_dir()
+    _ROOT = _get_root_dir()
 
     encoder, tracker, detector = get_tracking_devices(
         _ROOT/'models/yolo/yolov8s-seg.pt',

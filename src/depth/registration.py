@@ -2,14 +2,14 @@ import numpy as np
 import os
 import cv2
 import os
+from typing import List, Tuple, Dict
 import glob
 import matplotlib.pyplot as plt
 import pandas as pd
 import open3d as o3d
-from sklearn.cluster import KMeans, k_means, DBSCAN
+from sklearn.cluster import DBSCAN
 import copy
 from collections import Counter
-from DephtEstimation import semiGlobalMatchMap, readAllColorMatrices, get_Q_matrix
 
 """
 This file contrains the algorithm and the functions to register the 3D point clouds
@@ -27,6 +27,8 @@ based on the disparity maps and the camera parameters. The algorithm is the foll
     5. Calculate the transformation matrix between the clusters of points (avg. of the points / ICP)
 
 """
+
+MIN_PCD_SIZE = 3000
 
 def draw_labels_on_model(pcl, labels):
     """ Recives a point cloud and a list of labels and plot the point cloud with the labels as colors"""
@@ -53,23 +55,34 @@ def display_inlier_outlier(cloud, ind):
                                       lookat=[2.6172, 2.0475, 1.532],
                                       up=[-0.0694, -0.9768, 0.2024])
 
+def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_masks_:List[np.ndarray], Q:np.ndarray):
 
-def ObtainListOfPontClouds(disparity_frame1,n_frame1, left_img1, bb_boxes, Q, P2_rec):
-    """    
-    This is the main function of the algorithm. It takes the disparity maps of two frames and the bounding boxes
-    parameters:
-        disparity_frame1: disparity map of the first frame
-        n_frame1: number of the first frame
-        disparity_frame2: disparity map of the second frame
-        n_frame2: number of the second frame
-        bb_boxes: pandas dataframe with the bounding boxes of the two frames AND THE ID FROM DEEPSORT
-        Q: Q matrix from the camera parameters
-
-    returns: list of point clouds of the objects detected in the two frames with their transformation matrix
-    """
     # Get list of objects from both frames
-    bb1 =  bb_boxes[bb_boxes['frame'] == n_frame1]
-    cluster_list1 = extract_objects_point_clouds(disparity_frame1, left_img1,  bb1, Q, P2_rec)
+    _objs_pointclouds = make_pointclouds_from_masks(disparity_frame_, img_,  obj_masks_, Q)
+
+    # clustering for eliminating outliers
+    post_cluster1_list = []
+    for _pcd in _objs_pointclouds:
+        # Cluster the point to remove the noise from the background  
+        labels = cluster_BDscan(_pcd, eps=0.01, min_samples=100)
+        
+        # Get the biggest cluster 
+        _pcd = get_biggest_cluster(_pcd, labels)
+    
+        # TODO [By:Alex]: this is not relevant anymore
+        _pcd = remove_outliers_from_pointCloud(_pcd)
+
+        # Calculate the vector of translation
+        if len(_pcd.points) > MIN_PCD_SIZE:
+            post_cluster1_list.append(_pcd)
+
+    return post_cluster1_list
+
+def New_ObtainListOfPontClouds(disparity_frame_, n_frame_, left_img_, bb_boxes, Q, extr_mat):
+
+    # Get list of objects from both frames
+    bb1 =  bb_boxes[bb_boxes['frame'] == n_frame_]
+    cluster_list1 = make_pointclouds_from_masks(disparity_frame_, left_img_,  bb1, Q, extr_mat)
 
     # plot the point clouds
     #o3d.visualization.draw_geometries(cluster_list1)
@@ -108,48 +121,41 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, left_img1, bb_boxes, Q, P2
     # in the list
     return post_cluster1_list
 
-def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q, ex_mat):
-    """Method to extract the list of the pointClouds of the objects detected in the frame
-       we are using the bounding box therefore the pointclouds may contains point from the background
+def make_pointclouds_from_masks(disparity_map, img_, obj_masks_:List[np.ndarray], Q) -> List[o3d.geometry.PointCloud]:
+    """
+        Extract the list of the pointClouds of the objects detected in the frame.
+        NOTE: we are using the bounding box therefore the pointclouds may contains point from the background
+        parameters:
+            disparity_map: disparity map of the frame
+            img_: color image of the frame
+
+            
        
-       returns: list of point clouds"""
-    clusters = []
-    # TODO: change for new bb_detection one pipeline implemented
-    for bb in bb_detection[['bbox_left', 'bbox_top', 'bbox_right', 'bbox_bottom']].values:
-        # create mask
-
-        mask = np.zeros(disparity_map.shape, dtype=np.uint8)
-        mask[int(bb[1]):int(bb[3]), int(bb[0]): int(bb[2])] = 255
-
+        returns: list of point clouds"""
+    pc_from_objmasks = []
+    int2color = lambda i: (i*10, i*10, i*10)
+    for _i, _mask in enumerate(obj_masks_):
         # apply mask
         maskedDisparity = disparity_map.copy()
-        maskedDisparity[mask == 0] = 0
+        maskedDisparity[_mask == 0] = 0
 
         # get point cloud
-        points , colors = generate_pointCloud(maskedDisparity, color_img, Q)
-        write_ply("tmp_pointcloud.ply", points, colors)
-
-        # load pointcloud
-        pcd = o3d.io.read_point_cloud("tmp_pointcloud.ply")
-
-        # transform pointcloud by the extrinsic matrix to get the pointcloud in the world coordinates
-        pcd.transform(ex_mat)
-        
+        _mask_points, _mask_points_colors = generate_pointCloud(maskedDisparity, img_, Q)        
 
         # convert to open3d point cloud and add the color from the img
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(points)
-        # pcd.colors = o3d.utility.Vector3dVector(colors) 
+        _mask_pointcloud = o3d.geometry.PointCloud()
+        _mask_pointcloud.points = o3d.utility.Vector3dVector(_mask_points)
+        _mask_pointcloud.colors = o3d.utility.Vector3dVector(_mask_points_colors / 255.0)
 
         # plot the point cloud
         #o3d.visualization.draw_geometries([pcd])
-        # TODO: store openCV cluster
-        clusters.append(pcd)
 
-    return clusters
+        pc_from_objmasks.append(_mask_pointcloud)
 
-def generate_pointCloud(disparity_map,color_img,  Q):
-        """ Function to generate the point cloud from the disparity map and the Q matrix """
+    return pc_from_objmasks
+
+def generate_pointCloud(disparity_map, color_img,  Q):
+        """ Function to generate the pointcloud from the disparity map and the Q matrix """
         points = cv2.reprojectImageTo3D(disparity_map, Q, handleMissingValues=False)
         # reflect on x axis 
         reflect_matrix = np.identity(3)
