@@ -108,7 +108,6 @@ def ObtainListOfPontClouds(disparity_frame1,n_frame1, left_img1, bb_boxes, Q, P2
     # in the list
     return post_cluster1_list
 
-
 def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q, ex_mat):
     """Method to extract the list of the pointClouds of the objects detected in the frame
        we are using the bounding box therefore the pointclouds may contains point from the background
@@ -148,7 +147,6 @@ def extract_objects_point_clouds(disparity_map, color_img,  bb_detection, Q, ex_
         clusters.append(pcd)
 
     return clusters
-
 
 def generate_pointCloud(disparity_map,color_img,  Q):
         """ Function to generate the point cloud from the disparity map and the Q matrix """
@@ -209,7 +207,6 @@ def calculate_bounding_box(pointCloud, color = (0,255,0)):
     """Calculate the bounding box of the point cloud"""
     return pointCloud.get_axis_aligned_bounding_box()
 
-
 def calculate_vector_beetween_cluster(cluster1, cluster2):
     """ Calculate the vector between two clusters
         used to get the vector beetween frames """
@@ -226,10 +223,6 @@ def calculate_rotation_beetween_cluster(cluster1, cluster2):
 
     # get the rotation in y axis
     return diff[1]
-    
-
-
-
 
 def get_biggest_cluster(pointClouds, labels):
     """Get the biggest cluster from the pointclouds"""

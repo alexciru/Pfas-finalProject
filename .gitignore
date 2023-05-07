@@ -12,7 +12,6 @@ data/
 # symlink
 data
 
-
 # python
 __pycache__
 

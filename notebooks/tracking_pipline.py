@@ -8,7 +8,7 @@ from ultralytics import YOLO
 
 from tracking.deep_sort.deep_sort import nn_matching
 from tracking.deep_sort.deep_sort.detection import Detection
-from tracking.deep_sort.deep_sort.tracker import Tracker, Track
+from tracking.deep_sort.deep_sort.tracker import Tracker
 from tracking.deep_sort.tools import generate_detections as gdet
 
 # own
@@ -108,7 +108,6 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
         )
 
     return ds_objects
-
 
 def main():
     print("\n--- Starting tracking pipeline ---")

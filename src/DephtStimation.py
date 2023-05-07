@@ -3,7 +3,7 @@ import os
 import glob
 import numpy as np
 
-from utils.utils import ROOT_DIR
+from utils.utils import ROOT_DIR,DATA_DIR
 
 """ This file contains the methods used for the depth estimation of the images.
     The methods are:
@@ -74,6 +74,7 @@ def semiGlobalMatchMap(left_img, right_img):
     leftMatcher.setSpeckleRange(speckleRange)
     leftMatcher.setSpeckleWindowSize(speckleWindowSize)
     leftMatcher.setMinDisparity(minDisparity)
+
     # P1 and P2 values from OpenCV documentation
     leftMatcher.setP1(8*3*blockSize**2)
     leftMatcher.setP2(32*3*blockSize**2)
@@ -82,7 +83,6 @@ def semiGlobalMatchMap(left_img, right_img):
     
     left_img_blur = cv2.blur(cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY), (5,5))
     right_img_blur = cv2.blur(cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY), (5,5))
-
 
     # Calculating disparity using the stereoBM algorithm
     leftDisparity =  leftMatcher.compute(left_img_blur, right_img_blur).astype(np.float32)
@@ -99,10 +99,10 @@ def readAllColorMatrices():
         matrices: all the relevant matrices for the colored images
     """    
 
-    CALIB_DIR = ROOT_DIR / "\\data\\final_project_2023_rect//calib_cam_to_cam.txt"
+    _calib_filepath = DATA_DIR / "calib_cam_to_cam.txt"
 
     
-    with open(CALIB_DIR, 'r') as f:
+    with open(_calib_filepath, 'r') as f:
         fin = f.readlines()
         for line in fin:
             if line[:4] == "R_02":

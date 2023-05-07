@@ -14,27 +14,17 @@ from ResultSaving import write_results_to_file
 from utils.utils import get_frames, SEQ_01
 
 def main():
-
-    # ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    # DATA_DIR = ROOT_DIR + "\\data\\final_project_2023_rect"
-    # SEQ_01 = DATA_DIR + "\\seq_01"
-    # SEQ_02 = DATA_DIR + "\\seq_01"
-    # SEQ_03 = DATA_DIR + "\\seq_01"
-
-    ############  values   ####################
-    seq = SEQ_01
-    initial_fr = 0
-    final_fr = 0
+    print("\n--- Starting 3D reconstruction pipeline ---")
+        
+    ################# VALUES ###################
+    _n_frames = 2
+    # frames = [(_l, _r) for _l, _r in [get_frames(frame_num_=i, seq_dir_=SEQ_01) for i in range(_n_frames)]]
     ###########################################
 
-    ## Get the images
-    # left_path = SEQ_01 + "\\image_02\\data\\*.png"
-    # right_path = SEQ_01 + "\\image_03\\data\\*.png"
 
-    # left_images = glob.glob(left_path)
-    # right_images = glob.glob(right_path)
-    # left_images.sort()
-    # right_images.sort()
+    # for _frame_t, (_frame_l_t, _frame_r_t) in enumerate(frames):
+    #     # 1. get disparity map
+    #     ...
 
     # Function to get the labels
     bb_boxes = get_labels_temp(SEQ_01)
@@ -74,7 +64,7 @@ def main():
         o3d.visualization.draw_geometries(clusterlist1)
         # o3d.visualization.draw_geometries(cluster2_list)
 
-        write_results_to_file(n_frame, None, clusterlist1, clusterlist2, filename = "results.txt")
+        # write_results_to_file(n_frame, None, clusterlist1, clusterlist2, filename = "results.txt")
 
 
 if __name__ == "__main__":
