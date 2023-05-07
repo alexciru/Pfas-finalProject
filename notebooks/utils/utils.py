@@ -9,7 +9,7 @@ from typing import Dict
 
 
 # root file has .git folder in it
-def get_root_dir():
+def _get_root_dir():
     """
     returns the root directory of the project, by checking for the .git folder
     :return: root directory (pathlib.Path)
@@ -21,11 +21,10 @@ def get_root_dir():
         if _root == pathlib.Path("/"):
             raise FileNotFoundError("Could not find root directory")
 
-    print(f"Root directory is {_root}")
     return _root
 
 
-ROOT_DIR = get_root_dir()
+ROOT_DIR = _get_root_dir()
 
 DATA_DIR = ROOT_DIR / "data/video_rect"
 SEQ_01 = DATA_DIR / "seq_01"

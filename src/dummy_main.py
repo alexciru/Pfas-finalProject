@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import open3d as o3d
 from tqdm import tqdm
-from Depth.DephtEstimation import semiGlobalMatchMap, get_Q_matrix, readAllColorMatrices
-from final_project.src.depth.registration import get_labels_temp, ObtainListOfPontClouds
+from depth.estimation import semiGlobalMatchMap, get_Q_matrix
+from depth.registration import get_labels_temp, make_pointclouds_from_masks
 from ResultSaving import write_results_to_file
 
 from utils.utils import get_frames, SEQ_01
@@ -54,10 +54,10 @@ def main():
 
 
         # Finnally the pointclouds
-        clusterlist1 = ObtainListOfPontClouds(disparity_frame1, n_frame, left_img1, bb_boxes, Q, ex_mat)
+        clusterlist1 = make_pointclouds_from_masks(disparity_frame1, n_frame, left_img1, bb_boxes, Q, ex_mat)
 
         # TODO: no need to compute the clusters again if was computer in the previous frame
-        clusterlist2 = ObtainListOfPontClouds(disparity_frame2, n_frame+1, left_img2, bb_boxes, Q, ex_mat)
+        clusterlist2 = make_pointclouds_from_masks(disparity_frame2, n_frame+1, left_img2, bb_boxes, Q, ex_mat)
         
         
         # Plot the resutls

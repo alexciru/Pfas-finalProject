@@ -135,7 +135,8 @@ def get_Q_matrix(img_size:tuple, calib_filepath_:Path):
     
     cam2 = cam2[:,:3]
     cam3 = cam3[:,:3]
-    Tmat = np.array([0.54, 0.0, 0.0])   # From the KITTI Sensor setup, in metres 
+    Tmat = np.array([0.54, 0.0, 0.0])   # From the KITTI Sensor setup, in metres
+    
     cvQ = np.zeros((4,4))
     cv2.stereoRectify(cameraMatrix1=cam2, cameraMatrix2=cam3, distCoeffs1=0, distCoeffs2=0,
                         imageSize=img_size, R=np.identity(3), T=Tmat, 
