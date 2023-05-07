@@ -19,6 +19,8 @@ from deep_sort.tools import generate_detections
 import cv2
 import glob
 
+from utils.utils import get_root_dir
+
 
 # writes deepsort tracking id, bounding box, and class to frame
 def disp_track(frame, data, color=None, label_offset=0, expected=None):
@@ -129,13 +131,17 @@ def execute(
     max_cosine_distance = 0.6
     # max_cosine_distance = 1.0
     nn_budget = None
-    deepsort_model_file = local_parent / "networks/mars-small128.pb"
-    detector_model_file = ROOT / detector_model_file
+
+    _ROOT = get_root_dir()
+        
+        
+    # deepsort_model_file = local_parent / "networks/mars-small128.pb"
+    # detector_model_file = ROOT / detector_model_file
     if save_path:
         save_path = local_parent / f"results/{save_path}"
 
     # encoder is what
-    encoder = generate_detections.create_box_encoder(deepsort_model_file, batch_size=1)
+    encoder = generate_detections.create_box_encoder(_ROOT/'models/deepsort/mars-small128.pb', batch_size=1)
     metric = nn_matching.NearestNeighborDistanceMetric(
         "cosine", max_cosine_distance, nn_budget
     )
@@ -150,7 +156,7 @@ def execute(
     """
     )
     tracker = Tracker(metric, max_age=max_age, n_init=n_init)
-    detector = YOLO(detector_model_file)
+    detector = YOLO(_ROOT/'models/yolo/yolov8s-seg.pt',)
 
     if data_glob is None:
         print("No frame path pattern provided, exiting")
