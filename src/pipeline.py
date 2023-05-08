@@ -17,6 +17,7 @@ from tracking.deep_sort.tools import generate_detections as gdet
 
 import depth.estimation as depth_est
 import depth.registration as depth_reg
+from ResultSaving import write_results_to_file
 
 
 from utils.utils import (
@@ -255,12 +256,14 @@ def main():
             # raise NotImplementedError("3D tracking not implemented yet")
 
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
-
             object_tracker.update_position(_obj_t, _frame_t, _obj_central_position)
 
         lastFrameIds = set(ds_objs_t.keys())
+    
+        # save results to .txt file
+        write_results_to_file(_frame_t, ds_objs_t, _pointclouds_t, object_tracker, "results.txt")
 
-    object_tracker.save_trajectories(ROOT_DIR / "results/trajectories.txt")
+
     return
 
 
