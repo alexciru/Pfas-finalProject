@@ -185,13 +185,7 @@ def main():
         # 1. det tracked objects in frame t
         # ds_objects are represents the status in frame t of the tracked objects.
         # If an object detected in t'<t and not in t, it is occluded and will have a confidence of -1 and the .occluded property will be True
-        ds_objs_t = get_track_objects(
-            encoder_=encoder,
-            tracker_=ds_tracker,
-            detector_=ds_detector,
-            frame_l_=_frame_l_t,
-            frame_t=_frame_t,
-        )
+        ds_objs_t = get_track_objects(encoder_=encoder, tracker_=ds_tracker, detector_=ds_detector, frame_l_=_frame_l_t, frame_t=_frame_t)
 
         if ds_objs_t is None:
             print(f"No objects detected in frame {_frame_t}")
@@ -199,50 +193,36 @@ def main():
 
         disparity_frame, __ = depth_est.semiGlobalMatchMap(_frame_l_t, _frame_r_t)
 
-        _pointclouds_t = (
-            dict()
-        )  # key: object id, value: pointcloud of object #TODO: implement this logic, and deprecate the _objs_to_reconstruct_t list
+        _pointclouds_t = dict()  # key: object id, value: pointcloud of object #TODO: implement this logic, and deprecate the _objs_to_reconstruct_t list
         if _frame_t == 0:
             for _obj_id, _obj in ds_objs_t.items():
-                _possible_pc = depth_reg.pointclouds_from_masks(
-                    disparity_frame, _frame_l_t, [_obj.mask], Q, MIN_PCD_SIZE
-                )
+                _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj.mask], Q, MIN_PCD_SIZE)
                 if _possible_pc:
-                    print(
-                        f"Frame {_frame_t} | adding object {_obj} to  3D reconstruction"
-                    )
+                    print(f"Frame {_frame_t} | adding object {_obj} to  3D reconstruction")
                     _pointclouds_t[_obj_id] = _possible_pc[0]
+
         else:
             for _past_obj_id in lastFrameIds:
                 # object position estimation
-                if (
-                    _past_obj_id in ds_objs_t.keys()
-                ):  # object in last frame is in current frame
+                if (_past_obj_id in ds_objs_t.keys()):  # object in last frame is in current frame
                     _obj_t = ds_objs_t.get(_past_obj_id)
                     cls = _obj_t.label
-                    _possible_pc = depth_reg.pointclouds_from_masks(
-                        disparity_frame, _frame_l_t, [_obj_t.mask], Q, MIN_PCD_SIZE
-                    )
+                    _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj_t.mask], Q, MIN_PCD_SIZE)
                     if _possible_pc:
-                        print(
-                            f"Frame {_frame_t} | adding object {_obj}:{cls} to  3D reconstruction"
-                        )
+                        print(f"Frame {_frame_t} | adding object {_obj}:{cls} to  3D reconstruction")
                         _pointclouds_t[_obj_t.id] = _possible_pc[0]
 
-                # else: # object in last frame is not in current frame (OCCLUSION)
-                #     if KINEMATIC_PREDICTION:
-                #         # kinematics estimation
-                #         _pos_obj = object_tracker.predict_position(_past_obj_id, _frame_t)
-                #     else:
-                #         # deepsort estimation
-                #         # get predicted bbox form deepsort
-                #         raise NotImplementedError("DeepSort prediction not implemented")
-                #         ...
-            deleted_ids = lastFrameIds - set(ds_objs_t.keys())
-            print(f"IDs no longer tracked: {deleted_ids}")
-            print(f"Newly tracking IDs: {set(ds_objs_t.keys()) - lastFrameIds}")
-            occluded_objs = [ob.id for ob in ds_objs_t.values() if ob.occluded]
-            print(f"Occluded objects: {occluded_objs}")
+                else: # object in last frame is not in current frame (OCCLUSION)
+                    # kinematics estimation
+                    _pos_obj_t = object_tracker.predict_position(_past_obj_id, _frame_t)
+                    object_tracker.update_position(time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t)
+            
+        # QUESTION: Should this update of last objects happen also starting from frame 0?
+        deleted_ids = lastFrameIds - set(ds_objs_t.keys())
+        print(f"IDs no longer tracked: {deleted_ids}")
+        print(f"Newly tracking IDs: {set(ds_objs_t.keys()) - lastFrameIds}")
+        occluded_objs = [ob.id for ob in ds_objs_t.values() if ob.occluded]
+        print(f"Occluded objects: {occluded_objs}")
 
         # 3. reconstruct objects in 3D
         # for pc_id, pc in _pointclouds_t.items():
@@ -250,17 +230,15 @@ def main():
         #     o3d.visualization.draw_geometries([pc], window_name=f"Frame {_frame_t}, Object {pc_id}")
         # o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
 
-        # object tracking
+        # track objects from pointclouds
         for _obj_t, _obj_pcd in _pointclouds_t.items():
             # raise NotImplementedError("3D tracking not implemented yet")
-
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
-
-            object_tracker.update_position(_obj_t, _frame_t, _obj_central_position)
+            object_tracker.update_position(time_=_frame_t, obj_key_=_obj_t, position_=_obj_central_position)
 
         lastFrameIds = set(ds_objs_t.keys())
 
-    object_tracker.save_trajectories(ROOT_DIR / "results/trajectories.txt")
+    # object_tracker.save_trajectories(ROOT_DIR / "results/trajectories.txt")
     return
 
 
