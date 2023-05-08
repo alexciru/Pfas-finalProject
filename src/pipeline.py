@@ -20,7 +20,8 @@ import depth.registration as depth_reg
 
 
 
-from utils.utils import (ROOT_DIR, DATA_DIR, SEQ_01, SEQ_02, SEQ_03, get_frames, ObjectTracker)
+from utils.utils import (ROOT_DIR, DATA_DIR, SEQ_01, SEQ_02, SEQ_03, get_frames)
+from utils.ObjectTracker import ObjectTracker
 from utils.deepsort_utils import (LABELS_DICT, 
                                   UNKNOWN_DEFAULT,
                                   DeepSortObject,
@@ -51,7 +52,7 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
 
     _detections_t = []
     for _result, _maks in zip(_results_t.boxes, _masks_t):
-        cls = int(_result.cls[0])
+        
         # NOTE: I'm overriding id to match "class_id" aka 0,1,etc for label
         # another note: we can't create the DeepSortObject ahead of time like this
         # because later there is no way to match deepsort's track object to these (because for the bounding boxes are slightly diff
@@ -59,10 +60,11 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
         # so, instead, we create them dynamically in the deepsort loop like I do below
 
         # QUESTION: Does this mean that the code below is unnecessary there?
+        _cls= int(_result.cls[0])
         _dso = DeepSortObject(
-            id=int(cls), # This changes later with deepsort
-            label=LABELS_DICT.get(int(cls), UNKNOWN_DEFAULT),
-            confidence=float(_result.conf[0]),
+            id =int(_cls), # This changes later with deepsort,
+            cls = _cls,
+            confidence =float(_result.conf[0]),
             xyxy = _result.xyxy.tolist()[0],
             mask =_maks.astype(bool)
         )
@@ -106,7 +108,7 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
 
         ds_objects[track.track_id] = DeepSortObject(
             id=track.track_id,
-            label=LABELS_DICT.get(int(track.get_class()), UNKNOWN_DEFAULT),
+            cls = int(track.get_class()),
             confidence=conf,
             xyxy=list(track.to_tlbr()),
             mask=track.get_segmentation().astype(bool)
@@ -149,18 +151,22 @@ def main():
 
         disparity_frame, __ = depth_est.semiGlobalMatchMap(_frame_l_t, _frame_r_t)
     
-        _objs_to_reconstruct_t = []
         _pointclouds_t = dict() # key: object id, value: pointcloud of object #TODO: implement this logic, and deprecate the _objs_to_reconstruct_t list
         if _frame_t == 0:
-            # add all objects to reconstruction
-            _objs_to_reconstruct_t = list(ds_objs_t.values())
+            for _obj_id, _obj in ds_objs_t.items():
+                _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj.mask], Q, MIN_PCD_SIZE)
+                if _possible_pc:
+                    print(f'Frame {_frame_t} | adding object {_obj} to  3D reconstruction')
+                    _pointclouds_t[_obj_id] = _possible_pc[0]
         else:
             for _past_obj_id in lastFrameIds:
                 # object position estimation
                 if _past_obj_id in ds_objs_t.keys(): # object in last frame is in current frame
-                    print(f'Adding object {_past_obj_id} to reconstruction')
-                    _objs_to_reconstruct_t.append(ds_objs_t.get(_past_obj_id))
-                    # TODO: instead of adding to reconstruction, create the pc here @alex
+                    _obj_t = ds_objs_t.get(_past_obj_id)
+                    _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj_t.mask], Q, MIN_PCD_SIZE)
+                    if _possible_pc:
+                        print(f'Frame {_frame_t} | adding object {_obj} to  3D reconstruction')
+                        _pointclouds_t[_obj_t.id] = _possible_pc[0]
                 
                 # else: # object in last frame is not in current frame (OCCLUSION)
                 #     if KINEMATIC_PREDICTION:
@@ -173,21 +179,22 @@ def main():
                 #         ...
         
         # 3. reconstruct objects in 3D
-        # TODO: Creating the pcs here as a list looses track of which ps belongs to which ds_object. pc creating needs to be done at the ds_object level
-        _obj_masks = [_obj.mask for _obj in _objs_to_reconstruct_t]
-        _obj_pointclouds_t = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, _obj_masks, Q, MIN_PCD_SIZE)
-
-        o3d.visualization.draw_geometries(_obj_pointclouds_t, window_name=f"Frame {_frame_t}")
+        # for pc_id, pc in _pointclouds_t.items():
+        #     print(f"Object {pc_id} has {len(pc.points)} points")
+        #     o3d.visualization.draw_geometries([pc], window_name=f"Frame {_frame_t}, Object {pc_id}")
+        # o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
 
         # object tracking
-        for _obj_pcd in _obj_pointclouds_t:
+        for _obj_t, _obj_pcd in _pointclouds_t.items():
             # raise NotImplementedError("3D tracking not implemented yet")
 
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
 
-            object_tracker.register_position(_past_obj_id, _frame_t, _pos_obj)
+            object_tracker.register_position(_obj_t, _frame_t, _obj_central_position)
 
         lastFrameIds = set(ds_objs_t.keys())
+    
+    object_tracker.save_trajectories(ROOT_DIR / "results/trajectories.txt")
     return
 
 if __name__ == '__main__':

@@ -64,7 +64,7 @@ def main():
         o3d.visualization.draw_geometries(clusterlist1)
         # o3d.visualization.draw_geometries(cluster2_list)
 
-        # write_results_to_file(n_frame, None, clusterlist1, clusterlist2, filename = "results.txt")
+        write_results_to_file(n_frame, None, clusterlist1, clusterlist2, filename = "results.txt")
 
 
 if __name__ == "__main__":

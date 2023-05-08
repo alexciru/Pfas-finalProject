@@ -92,11 +92,15 @@ UNKNOWN_DEFAULT = "?"
 @dataclass
 class DeepSortObject():
     id: int
-    label: str
+    cls: str
     confidence: float # -1 means occluded
     xyxy: List[float]
     mask: np.ndarray
 
+    @property
+    def label(self):
+        return LABELS_DICT.get(self.cls, UNKNOWN_DEFAULT)
+    
     @property
     def occluded(self):
         return self.confidence == -1
@@ -111,6 +115,9 @@ class DeepSortObject():
         height = self.xyxy[3] - self.xyxy[1]
         return [top_left_x, top_left_y, width, height]
 
+    def __repr__(self) -> str:
+        return f"DeepSortObject(id={self.id}, cls={self.cls}, label={self.label}, confidence={self.confidence})"
+    
 def resize_masks(masks, orig_shape):
     # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image
     masks = np.moveaxis(masks, 0, -1)

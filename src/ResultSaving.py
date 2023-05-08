@@ -66,7 +66,6 @@ def write_results_to_file(frame_id, DeepSortId, clusterlist1_list, cluster2_list
         
         # Obtain from DeepSort
         score = 69.420 
-
         row.append(frame)
         row.append(track_id)
         row.append(otype)

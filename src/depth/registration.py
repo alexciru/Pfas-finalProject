@@ -71,7 +71,7 @@ def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_mas
         # Calculate the vector of translation
         if len(_pcd.points) > min_pcd_size_:
             post_cluster1_list.append(_pcd)
-
+        
     return post_cluster1_list
 
 def New_ObtainListOfPontClouds(disparity_frame_, n_frame_, left_img_, bb_boxes, Q, extr_mat):
@@ -160,7 +160,8 @@ def generate_pointCloud(disparity_map, color_img,  Q):
         
         
         # extract colors from the image
-        colors = cv2.cvtColor(color_img, cv2.COLOR_BGR2RGB) 
+        # colors = cv2.cvtColor(color_img, cv2.COLOR_BGR2RGB) 
+        colors = color_img
 
         # Remove the points with value 0 (no depth) one applied by mask
         mask = disparity_map > disparity_map.min()
