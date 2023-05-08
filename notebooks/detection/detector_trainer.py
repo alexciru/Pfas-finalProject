@@ -23,12 +23,12 @@ model = YOLO(ROOT / "yolov8n.pt")
 # Train the model using the 'coco128.yaml' dataset
 # NOTE: name is subdirectory where model will be saved within 'project' dir
 # see https://github.com/ultralytics/ultralytics/issues/512 for more details
-results = model.train(
-    data="coco128.yaml", epochs=1, project=ROOT, name="runs/detect/train"
-)
+# results = model.train(
+#     data="coco128.yaml", epochs=1, project=ROOT, name="runs/detect/train"
+# )
 
 # Evaluate the model's performance on the validation set
-results = model.val()
+# results = model.val()
 
 # Perform object detection on an image using the model
 results = model("https://ultralytics.com/images/bus.jpg")

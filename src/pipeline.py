@@ -45,7 +45,7 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
     _results_t = _results_t[0]
     _masks_t = resize_masks(masks=_results_t.masks.data.numpy(),orig_shape=_results_t.masks.orig_shape)
 
-    if not _results_t: return None # TODO: Handle this in main
+    if not _results_t: return None
 
     _OCLUSSION_THRESHOLD = 2 # timestep duration of an object not being detected before we consider it occluded
 
@@ -89,13 +89,12 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
     for track in tracker_.tracks:
         # goes over all tracked objects EVER (not just in current frame)
         # we filter for the ones detected in current with the .time_since_update check
-        if not track.is_tentative(): #BUG
+        if not track.is_confirmed(): #BUG
             # track can be tentative (recently created, needs more evidence aka associations in n_init+1 frames),
             # confirmed (associated for n_init+1 or more frames), or deleted (no longer tracked)
             # a new object is classified as tentative in the first n_init frames
             # https://github.com/nwojke/deep_sort/issues/48
-            print(f"Track {track.track_id} {track.class_id} is tentative")
-
+            ...
             # continue
 
         # if occluded (aka not detected in past X frames), use previous frame's class for given id
@@ -134,16 +133,17 @@ def main():
     lastFrameIds = {} # List of objects detected in last frame
 
     print("Loading models")
-    encoder, tracker, detector = get_tracking_devices(
+    encoder, ds_tracker, ds_detector = get_tracking_devices(
         ROOT_DIR/'models/yolo/yolov8s-seg.pt',
         ROOT_DIR/'models/deepsort/mars-small128.pb')
     print("Models loaded")
 
     for _frame_t, (_frame_l_t, _frame_r_t) in enumerate(FRAMES):
+        print("\nAnalyzing frame", _frame_t)
         # 1. det tracked objects in frame t
         # ds_objects are represents the status in frame t of the tracked objects. 
         # If an object detected in t'<t and not in t, it is occluded and will have a confidence of -1 and the .occluded property will be True
-        ds_objs_t = get_track_objects(encoder_=encoder, tracker_=tracker, detector_=detector, frame_l_=_frame_l_t)
+        ds_objs_t = get_track_objects(encoder_=encoder, tracker_=ds_tracker, detector_=ds_detector, frame_l_=_frame_l_t)
         
         if ds_objs_t is None: print(f"No objects detected in frame {_frame_t}"); continue
 
@@ -180,12 +180,12 @@ def main():
         o3d.visualization.draw_geometries(_obj_pointclouds_t, window_name=f"Frame {_frame_t}")
 
         # object tracking
-        # for _obj_pcd in _obj_pointclouds_t:
-        #     raise NotImplementedError("3D tracking not implemented yet")
+        for _obj_pcd in _obj_pointclouds_t:
+            # raise NotImplementedError("3D tracking not implemented yet")
 
-        #     _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
+            _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
 
-        #     object_tracker.register_position(_past_obj_id, _frame_t, _pos_obj)
+            object_tracker.register_position(_past_obj_id, _frame_t, _pos_obj)
 
         lastFrameIds = set(ds_objs_t.keys())
     return

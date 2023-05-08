@@ -4,18 +4,14 @@ import glob
 from pathlib import Path
 import os
 
-FILE = Path(__file__).resolve()
-# ROOT is the Pfas-finalProject git repo
-local_parent = FILE.parents[0]
-ROOT = local_parent.parents[0].parents[0]  # root directory.
+from utils.utils import ROOT_DIR, DATA_DIR, get_frames
 
-def execute(data_glob=None, model=None):
+def execute(data_glob=None, model_path=None):
     # Load the YOLOv8 model
-    model_path = ROOT / model
     model = YOLO(model_path)
     print(f"Loaded model from {model_path}")
 
-    data_glob = os.path.join(ROOT, data_glob)
+    data_glob = os.path.join(ROOT_DIR, data_glob)
 
     frame_paths = sorted(glob.glob(data_glob))
     if not frame_paths:
@@ -26,7 +22,7 @@ def execute(data_glob=None, model=None):
         success = frame is not None
         if success:
             # Run YOLOv8 inference on the frame
-            results = model(frame)
+            results = model.predict(frame)
 
             # Visualize the results on the frame
             annotated_frame = results[0].plot()
@@ -47,6 +43,7 @@ def execute(data_glob=None, model=None):
 
 
 if __name__ == "__main__":
-    data_glob = "data/video/seq_01/image_02/data/*.png"
-    model = "models/yolov8n.pt"
-    execute(data_glob=data_glob, model=model)
+    data_glob = f"{DATA_DIR}/seq_01/image_02/data/*.png"
+    model_path = ROOT_DIR/'models/yolo/yolov8s-seg.pt'
+
+    execute(data_glob=data_glob, model_path=model_path)
