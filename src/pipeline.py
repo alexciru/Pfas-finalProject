@@ -17,6 +17,7 @@ from tracking.deep_sort.deep_sort.detection import Detection
 from tracking.deep_sort.deep_sort.tracker import Tracker, Track
 from tracking.deep_sort.tools import generate_detections as gdet
 
+
 import depth.estimation as depth_est
 import depth.registration as depth_reg
 import ResultSaving as results
@@ -159,7 +160,7 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
     FRAMES = get_all_frames(seq_dir_=seq_)
 
     # disparity map and 3d reconstruction variables
-    MIN_PCD_SIZE = (1000)  # minimum number of points in a pointcloud to be considered valid
+    MIN_PCD_SIZE = (2500)  # minimum number of points in a pointcloud to be considered valid
 
     Q = depth_est.get_Q_matrix(
         FRAMES[0][0].shape[:2], DATA_DIR / "calib_cam_to_cam.txt"
@@ -187,7 +188,8 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
         # 1. det tracked objects in frame t
         # ds_objects are represents the status in frame t of the tracked objects.
         # If an object detected in t'<t and not in t, it is occluded and will have a confidence of -1 and the .occluded property will be True
-        ds_objs_t = get_track_objects(encoder_=encoder, tracker_=ds_tracker, detector_=ds_detector, frame_l_=_frame_l_t, frame_t=_frame_t, first_frame_=begin_frame_)
+
+        ds_objs_t = get_track_objects(encoder_=encoder, tracker_=ds_tracker, detector_=ds_detector, frame_l_=_frame_l_t, frame_t=_frame_t, first_frame_= begin_frame_)
 
         if ds_objs_t is None:
             print(f"No objects detected in frame {_frame_t}")
@@ -231,7 +233,10 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
                         results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
                         continue
                     object_tracker.update_position(time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t)
-            
+        
+
+        #o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
+
         # QUESTION: Should this update of last objects happen also starting from frame 0?
         deleted_ids = lastFrameIds - set(ds_objs_t.keys())
         results.log_info(LOG_FILENAME, f"Frame {_frame_t} | IDs no longer tracked: {deleted_ids}")
@@ -248,6 +253,7 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
         # track objects from pointclouds
         for _ds_obj_t, _obj_pcd in _pointclouds_t.items():
             # raise NotImplementedError("3D tracking not implemented yet")
+            print(f"[3D TRACKED OBJECTS IN POINTCLOUD: {len(_pointclouds_t)}")
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
             object_tracker.update_position(time_=_frame_t, obj_key_=_ds_obj_t, position_=_obj_central_position)
 
