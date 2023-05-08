@@ -5,7 +5,6 @@ import cv2 as cv
 import pandas as pd
 
 
-
 # root file has .git folder in it
 def _get_root_dir():
     """
