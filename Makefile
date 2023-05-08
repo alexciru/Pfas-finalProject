@@ -16,6 +16,9 @@ else
 HAS_CONDA=True
 endif
 
+pipeline:
+	python3 src/pipeline.py
+
 segment:
 	python3 notebooks/detection/segmenter.py
 
