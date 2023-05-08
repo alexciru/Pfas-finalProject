@@ -35,6 +35,7 @@ def find_match(obj, gt_track_objs):
             gt_obj["bbox_left"] + (gt_obj["bbox_right"] - gt_obj["bbox_left"]) / 2,
             gt_obj["bbox_top"] + (gt_obj["bbox_bottom"] - gt_obj["bbox_top"]) / 2,
         )
+        # euclidian distance between bbox centers
         err = np.linalg.norm(np.array(bbox_target) - np.array(gt_bbox_center))
         if err < min_err:
             min_err = err
@@ -68,7 +69,7 @@ if __name__ == "__main__":
             gt_obj_match, err = find_match(obj, gt_track_objs)
             gt_id = gt_obj_match["track_id"]
             gt_cls = gt_obj_match["type"]
-            print(f"{ds_id}->{gt_id}:{ds_cls}->{gt_cls}, err: {err}")
+            print(f"{ds_id}->{gt_id}:{ds_cls}->{gt_cls}, err: {err}pixels")
         print()
         if frame == 10:
             exit(1)
