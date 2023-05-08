@@ -17,6 +17,7 @@ from tracking.deep_sort.tools import generate_detections as gdet
 
 import depth.estimation as depth_est
 import depth.registration as depth_reg
+from ResultSaving import write_results_to_file
 
 
 from utils.utils import (
@@ -237,8 +238,11 @@ def main():
             object_tracker.update_position(time_=_frame_t, obj_key_=_obj_t, position_=_obj_central_position)
 
         lastFrameIds = set(ds_objs_t.keys())
+    
+        # save results to .txt file
+        write_results_to_file(_frame_t, ds_objs_t, _pointclouds_t, object_tracker, "results.txt")
 
-    # object_tracker.save_trajectories(ROOT_DIR / "results/trajectories.txt")
+
     return
 
 
