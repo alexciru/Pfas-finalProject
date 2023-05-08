@@ -60,7 +60,7 @@ def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_mas
     post_cluster1_list = []
     for _pcd in _objs_pointclouds:
         # Cluster the point to remove the noise from the background  
-        labels = cluster_BDscan(_pcd, eps=0.01, min_samples=100)
+        labels = cluster_BDscan(_pcd, eps=0.0075, min_samples=100)
         
         # Get the biggest cluster 
         _pcd = get_biggest_cluster(_pcd, labels)
@@ -178,7 +178,7 @@ def generate_pointCloud(disparity_map, color_img,  Q):
 
 def remove_outliers_from_pointCloud(pointCloud):
     """Remove outliers using stadistical approach"""
-    cl, ind = pointCloud.remove_statistical_outlier(nb_neighbors=2, std_ratio=2.0)
+    cl, ind = pointCloud.remove_statistical_outlier(nb_neighbors=2, std_ratio=1.0)
     inlier_cloud = pointCloud.select_by_index(ind)
     return inlier_cloud
 
