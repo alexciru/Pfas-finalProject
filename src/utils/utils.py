@@ -3,9 +3,7 @@
 import os, pathlib
 import cv2 as cv
 import pandas as pd
-import numpy as np
 
-from typing import Dict
 
 
 # root file has .git folder in it
@@ -39,8 +37,8 @@ def get_frames(frame_num_, seq_dir_):
     :param seq_dir_: sequence directory (pathlib.Path)
     :return: right and left frame (np.ndarray, np.ndarray)
     """
-    _frame_name_r = str(seq_dir_ / "image_02/data" / f"{frame_num_:06d}.png")
-    _frame_name_l = str(seq_dir_ / "image_03/data" / f"{frame_num_:06d}.png")
+    _frame_name_r = str(seq_dir_ / "image_02/data" / f"{frame_num_:010d}.png")
+    _frame_name_l = str(seq_dir_ / "image_03/data" / f"{frame_num_:010d}.png")
 
     if not os.path.isfile(_frame_name_r):
         raise FileNotFoundError(f"File {_frame_name_r} not found")
