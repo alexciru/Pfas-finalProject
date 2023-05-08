@@ -211,13 +211,13 @@ def drawXYZlocation(image, object, pMat):
     point_2d_hom /= point_2d_hom[2]
     point_2d = point_2d_hom[:2]
     cv2.circle(image, (u_obj:=int(point_2d[0]), v_obj:=int(point_2d[1])), 5, (0, 0, 255), -1) # Draw the point on the image
-    cv2.putText(image, str(object.type)[:3], org=(u_obj, v_obj), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX,  color=(0,0,255), thickness=1, lineType=cv2.LINE_AA)
+    cv2.putText(image, f"{str(object.type)[:3]} id: {object.id} ", org=(u_obj, v_obj), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX,  color=(0,0,255), thickness=1, lineType=cv2.LINE_AA)
 
     return image
 
-def add_frame_num(image, frame):
+def add_frame_num(image, frame, tot_frames_):
     """
     adds frame number at bottom corner of image
     """
-    cv2.putText(image, str(frame), org=(50, 50), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX, color=(255,0,0), thickness=4, lineType=cv2.LINE_AA)
+    cv2.putText(image, f"{str(frame)}/ {tot_frames_}", org=(50, 50), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX, color=(255,0,0), thickness=4, lineType=cv2.LINE_AA)
     return image

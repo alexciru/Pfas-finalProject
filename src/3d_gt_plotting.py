@@ -2,7 +2,7 @@ import glob
 from visualization.Box3D import *
 from utils.utils import ROOT_DIR, DATA_DIR, SEQ_01
 
-def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=False):
+def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=False, tot_frames_=0):
     """Function to render the image with the 3D bounding boxes.
     Args:
         img (ndarray): the rgb image to render the boxes on
@@ -16,7 +16,7 @@ def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=Fals
         box3d_pixelcoord = map_box_to_image(obj, p2Matrix)
         img1 = draw_projected_box3d(img1, box3d_pixelcoord, obj, frame)
         img1 = drawXYZlocation(img1, obj, p2Matrix)
-        img1 = add_frame_num(img1, frame)
+        img1 = add_frame_num(img1, frame, tot_frames_)
 
     img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
     if results:
@@ -43,8 +43,8 @@ if __name__ == '__main__':
     cv2.imshow("ground truth", cv2.imread(images[0]))
     cv2.imshow("results", cv2.imread(images[0]))
     cv2.waitKey(0)                      # Wait for a key press (to be able to start recording video)
-    for i in range(len(resultLabels)):
+    for i in range(tot_frames:=len(images)):
         rgb = cv2.cvtColor(cv2.imread(images[i]), cv2.COLOR_BGR2RGB)
-        render_image_with_boxes(rgb, gtLabels, p2Matrix, i, time=80, results=False)
-        render_image_with_boxes(rgb, resultLabels, p2Matrix, i, time=80, results=True)
+        render_image_with_boxes(rgb, gtLabels, p2Matrix, i, time=80, results=False, tot_frames_=tot_frames)
+        render_image_with_boxes(rgb, resultLabels, p2Matrix, i, time=80, results=True, tot_frames_=tot_frames)
     cv2.destroyAllWindows()

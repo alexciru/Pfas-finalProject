@@ -149,7 +149,7 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
     print("\n--- Starting pipeline ---")
 
     RESULTS_FILENAME = ROOT_DIR / f"results/{seq_.name}_results.txt"
-    LOG_FILENAME = ROOT_DIR / f"logs/{seq_.name}_log.txt"
+    LOG_FILENAME = ROOT_DIR / f"logs/{seq_.name}_log.log"
     results.reset_file(RESULTS_FILENAME)
     results.reset_file(LOG_FILENAME)
 
@@ -269,4 +269,4 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
 
 
 if __name__ == "__main__":
-    main(SEQ_01, begin_frame_=0, end_frame_=144)
+    main(SEQ_02, begin_frame_=0, end_frame_=144)
