@@ -15,6 +15,7 @@ from tracking.deep_sort.deep_sort.detection import Detection
 from tracking.deep_sort.deep_sort.tracker import Tracker, Track
 from tracking.deep_sort.tools import generate_detections as gdet
 
+
 import depth.estimation as depth_est
 import depth.registration as depth_reg
 import ResultSaving as results
@@ -181,6 +182,8 @@ def main(seq_: Path):
         # ds_objects are represents the status in frame t of the tracked objects.
         # If an object detected in t'<t and not in t, it is occluded and will have a confidence of -1 and the .occluded property will be True
         ds_objs_t = get_track_objects(encoder_=encoder, tracker_=ds_tracker, detector_=ds_detector, frame_l_=_frame_l_t, frame_t=_frame_t)
+        test = ds_objs_t[1].get_avg_mask()
+
 
         if ds_objs_t is None:
             print(f"No objects detected in frame {_frame_t}")
