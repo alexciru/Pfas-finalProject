@@ -102,9 +102,7 @@ class ImageEncoder(object):
         return out
 
 
-def create_box_encoder(
-    model_filename, input_name="images", output_name="features", batch_size=32
-):
+def create_box_encoder(model_filename, input_name="images", output_name="features", batch_size=32):
     image_encoder = ImageEncoder(model_filename, input_name, output_name)
     image_shape = image_encoder.image_shape
 

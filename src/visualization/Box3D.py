@@ -85,9 +85,9 @@ def project_to_image(points, proj_mat):
         proj_mat:   Projection matrix (3, 4)
     """
     points = proj_mat @ points
-    points[:2, :] /= points[2, :]
+    points /= points[2]
     
-    return points[:2, :]
+    return points[:2]
 
 
 def map_box_to_image(box, proj_mat):

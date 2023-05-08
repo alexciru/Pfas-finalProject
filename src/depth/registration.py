@@ -58,6 +58,8 @@ def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_mas
     # clustering for eliminating outliers
     post_cluster1_list = []
     for _pcd in _objs_pointclouds:
+        if len(_pcd.points) == 0:
+            continue
         # Cluster the point to remove the noise from the background  
         labels = cluster_DBscan(_pcd, eps=0.0050, min_samples=100)
         
