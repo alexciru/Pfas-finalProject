@@ -204,11 +204,15 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
             for _past_obj_id in lastFrameIds:
                 # object position estimation
                 if (_past_obj_id in ds_objs_t.keys()):  # object in last frame is in current frame
-                    _obj_t = ds_objs_t.get(_past_obj_id)
-                    _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj_t.mask], Q, MIN_PCD_SIZE)
+                    _ds_obj_t = ds_objs_t.get(_past_obj_id)
+                    results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected in frame: {ds_objs_t.keys()}")
+
+                    _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_ds_obj_t.mask], Q, MIN_PCD_SIZE)
                     if _possible_pc:
-                        print(f"Frame {_frame_t} | adding object {_obj_t} to  3D reconstruction")
-                        _pointclouds_t[_obj_t.id] = _possible_pc[0]
+                        print(f"Frame {_frame_t} | adding object {_ds_obj_t} to  3D reconstruction")
+                        _pointclouds_t[_ds_obj_t.id] = _possible_pc[0]
+                    else:
+                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_ds_obj_t.id} not added to 3D reconstruction")
 
                 else: # object in last frame is not in current frame (OCCLUSION)
                     # kinematics estimation
@@ -219,6 +223,7 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
                     FRAME_FENCE = 10
                     if _p_image[0] < FRAME_FENCE or _p_image[0] > _frame_l_t.shape[1]-FRAME_FENCE or _p_image[1] < FRAME_FENCE or _p_image[1] > _frame_l_t.shape[0]- FRAME_FENCE:
                         print(f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
+                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
                         continue
                     object_tracker.update_position(time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t)
             
@@ -236,14 +241,14 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
         # o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
 
         # track objects from pointclouds
-        for _obj_t, _obj_pcd in _pointclouds_t.items():
+        for _ds_obj_t, _obj_pcd in _pointclouds_t.items():
             # raise NotImplementedError("3D tracking not implemented yet")
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
-            object_tracker.update_position(time_=_frame_t, obj_key_=_obj_t, position_=_obj_central_position)
+            object_tracker.update_position(time_=_frame_t, obj_key_=_ds_obj_t, position_=_obj_central_position)
 
         results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects tracked in frame {object_tracker.objects_in_time[_frame_t].keys()}")
         lastFrameIds = set(ds_objs_t.keys())
-        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected: {lastFrameIds}")
+        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected in last frame: {lastFrameIds}")
     
         # save results for time t to results.txt file
         results.new_save_timeframe_results(_frame_t, object_tracker, ds_objs_t, _pointclouds_t, RESULTS_FILENAME)

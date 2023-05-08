@@ -39,7 +39,7 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
     for _obj_id, _obj_pos in objects_in_t.items():
         frame_id = frame_t_
         obj_id = _obj_id
-        label = ds_tracked_objects_[_obj_id].cls
+        label = LABELS_DICT.get(ds_tracked_objects_[_obj_id].cls)
         truncated = 0 # TODO
         occluded = ds_tracked_objects_[_obj_id].cls
         alpha = 0 # TODO
@@ -63,9 +63,9 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
             bbox = calculate_bounding_box(possible_points)
             max_bound = bbox.get_max_bound()
             min_bound = bbox.get_min_bound()
-            width = max_bound[0] - min_bound[0]
-            height = max_bound[1] - min_bound[1]
-            length = max_bound[2] - min_bound[2]
+            width = -1*(max_bound[0] - min_bound[0])
+            height = -1*(max_bound[1] - min_bound[1])
+            length = -1*(max_bound[2] - min_bound[2])
         
             # offset the location to be the center of the bottom box
             x = x - (width/2)

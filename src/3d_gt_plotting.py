@@ -1,5 +1,6 @@
 import glob
-from Box3D import *
+from visualization.Box3D import *
+from utils.utils import ROOT_DIR, DATA_DIR, SEQ_01
 
 def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=False):
     """Function to render the image with the 3D bounding boxes.
@@ -24,17 +25,18 @@ def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=Fals
     cv2.waitKey(0)
 
 if __name__ == '__main__':
-    CAM_TO_CAM = '../data/final_project_2023_rect/calib_cam_to_cam.txt'
-    GROUND_TRUTH = '../data/final_project_2023_rect/seq_01/labels.txt'
-    RESULTS = 'seq_01_results.txt'
-    SEQUENCE = '../data/final_project_2023_rect/seq_01'
+    CAM_TO_CAM = DATA_DIR / 'calib_cam_to_cam.txt'
+    GROUND_TRUTH = SEQ_01 / 'labels.txt'
+    RESULTS = ROOT_DIR / 'results/seq_01_results.txt'
+    SEQUENCE = ROOT_DIR / 'data/video_rect/seq_01/'
     
     p2Matrix = readProjectionMatrix(CAM_TO_CAM)         # Load the projection matrix for the left RGB camera
     gtLabels = load_label(GROUND_TRUTH)                 # Load the labels to use as ground truth
     resultLabels = load_label(RESULTS, result=True)     # Load the labels of our results
     gtLabels = sortLabels(gtLabels)                     # Sort the labels by frame number
     resultLabels = sortLabels(resultLabels)             # Sort the labels by frame number
-    images = glob.glob(SEQUENCE+'/image_02/data/*.png') # Read the images of the sequence
+    _path = str(SEQUENCE)+'/image_02/data/*.png'
+    images = glob.glob(_path) # Read the images of the sequence
     images.sort()                                       # Sort the images by frame number
     # Display the ground truth and the results in two separate windows
     cv2.imshow("ground truth", cv2.imread(images[0]))

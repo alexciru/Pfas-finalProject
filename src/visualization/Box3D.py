@@ -33,9 +33,9 @@ class Box3D():
         self.length = data[10]  # length (in meters)
         self.translation = (data[11], data[12], data[13])  # (x,y,z) location in camera coordinates
         self.ry = data[14]  # rotation around y in camera coordinates [-pi;pi]
-        if result:
-            # ONLY TO READ RESULTS
-            self.score = data[15]  # Only for results: Score of the prediction
+        # if result:
+        #     # ONLY TO READ RESULTS
+        #     self.score = data[15]  # Only for results: Score of the prediction
 
     def in_camera_coordinates(self):
         def roty(rotation):
@@ -183,8 +183,9 @@ def draw_projected_box3d(image, pixelCoord3dBox, obj, frame, color=(0, 255, 0), 
         # Draw the bottom square of the box
         cv2.line(image, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)
         if k == 1:
-            cv2.putText(image, str(obj.id), org=(x1, y1), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
-                            color=(255,0,0), thickness=1, lineType=cv2.LINE_AA)
+            if obj.id == 29:
+                cv2.putText(image, str(obj.id), org=(x1, y1), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
+                                color=(255,0,0), thickness=1, lineType=cv2.LINE_AA)
 
         i, j = k + 4, (k + 1) % 4 + 4  # Gets the indices of the 4 top points of the box
         x1, y1 = pixelCoord3dBox[i, 0], pixelCoord3dBox[i, 1] 
@@ -192,7 +193,8 @@ def draw_projected_box3d(image, pixelCoord3dBox, obj, frame, color=(0, 255, 0), 
         # Draw the top square of the box
         cv2.line(image, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)   
         if k == 2:
-            cv2.putText(image, str(obj.type)[:3], org=(x1, y1), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            if obj.id == 29:
+                cv2.putText(image, str(obj.type)[:3], org=(x1, y1), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         color=(255,0,0), thickness=1, lineType=cv2.LINE_AA)
 
         i, j = k, k + 4   # Gets the indices of the 4 lines between the top and bottom squares
@@ -206,7 +208,6 @@ def draw_projected_box3d(image, pixelCoord3dBox, obj, frame, color=(0, 255, 0), 
 
 def drawXYZlocation(image, object, pMat):
     x,y,z = object.translation[0], object.translation[1], object.translation[2]
-    
     # Define the 3D point
     point_3d = np.array([x, y, z])
     
@@ -214,6 +215,8 @@ def drawXYZlocation(image, object, pMat):
     point_2d_hom = np.dot(pMat, point_3d)
     point_2d_hom /= point_2d_hom[2]
     point_2d = point_2d_hom[:2]
-    cv2.circle(image, (int(point_2d[0]), int(point_2d[1])), 5, (0, 0, 255), -1) # Draw the point on the image
+    if object.id == 29:
+        cv2.circle(image, (u_obj:=int(point_2d[0]), v_obj:=int(point_2d[1])), 5, (0, 0, 255), -1) # Draw the point on the image
+        cv2.putText(image, str(object.type)[:3], org=(u_obj, v_obj), fontScale=1, fontFace=cv2.FONT_HERSHEY_SIMPLEX,  color=(255,0,0), thickness=1, lineType=cv2.LINE_AA)
     
     return image
