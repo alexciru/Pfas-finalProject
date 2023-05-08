@@ -26,8 +26,8 @@ from utils.utils import (
     SEQ_02,
     SEQ_03,
     get_frames,
-    ObjectTracker,
 )
+from utils.ObjectTracker import ObjectTracker
 from utils.deepsort_utils import (
     LABELS_DICT,
     UNKNOWN_DEFAULT,
@@ -191,6 +191,7 @@ def main():
             tracker_=ds_tracker,
             detector_=ds_detector,
             frame_l_=_frame_l_t,
+            frame_t=_frame_t,
         )
 
         if ds_objs_t is None:
@@ -219,7 +220,7 @@ def main():
                     _past_obj_id in ds_objs_t.keys()
                 ):  # object in last frame is in current frame
                     _obj_t = ds_objs_t.get(_past_obj_id)
-                    cls = ds_objs_t.get(_obj_t).label
+                    cls = _obj_t.label
                     _possible_pc = depth_reg.pointclouds_from_masks(
                         disparity_frame, _frame_l_t, [_obj_t.mask], Q, MIN_PCD_SIZE
                     )
