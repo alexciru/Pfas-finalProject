@@ -1,10 +1,11 @@
 import open3d as o3d
 import numpy as np
+from typing import Dict
 from pathlib import Path
 
 # own
 from utils.ObjectTracker import ObjectTracker
-from utils.deepsort_utils import LABELS_DICT
+from utils.deepsort_utils import LABELS_DICT, DeepSortObject
 from depth.registration import calculate_bounding_box, get_avg_point_pointCloud
 """
 Funtion to save the results of the object detection to a file
@@ -17,6 +18,55 @@ def reset_results_file(filename_:Path):
     """
     with open(filename_, 'w') as f:
         f.write("")
+
+def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_tracked_objects_:Dict[int, DeepSortObject], pointcloud_dict_:dict,  filename:str):
+    """
+    Saves the results of the given timeframe to the given file
+    Row format:
+        frame_id, _obj_id, label, truncated, occluded, alpha, bbox_left, bbox_top, bbox_right, bbox_bottom, height, width, length, x, y, z, rotation_y
+    """
+    
+    objects_in_t = object_tracker_.objects_in_time[frame_t_]
+
+    for _obj_id, _obj_pos in objects_in_t.items():
+        frame_id = frame_t_
+        obj_id = _obj_id
+        label = ds_tracked_objects_[_obj_id].cls
+        truncated = 0 # TODO
+        occluded = ds_tracked_objects_[_obj_id].cls
+        alpha = 0 # TODO
+        bbox_left = ds_tracked_objects_[_obj_id].xyxy[0]
+        bbox_top = ds_tracked_objects_[_obj_id].xyxy[1]
+        bbox_right = ds_tracked_objects_[_obj_id].xyxy[2]
+        bbox_bottom = ds_tracked_objects_[_obj_id].xyxy[3]
+
+        
+        height = 0 # TODO
+        width = 0 # TODO
+        length = 0 # TODO
+        x = _obj_pos[0]
+        y = _obj_pos[1]
+        z = _obj_pos[2]
+
+        location = _obj_pos
+        prev_location = object_tracker_.get_object_trajectory(_obj_id)[frame_t_-1]
+        try:
+            _rotation_y = np.arctan2(location[2] - prev_location[2], location[0] - prev_location[0])
+        except:
+            print(f"rotation for object {_obj_id} in frame {frame_t_} could not be calculated")
+            _rotation_y = 0
+        rotation_y = _rotation_y
+        score = ds_tracked_objects_[_obj_id].confidence
+
+        row = [frame_id, obj_id, label, truncated, occluded, alpha, bbox_left, bbox_top, bbox_right, bbox_bottom, height, width, length, x, y, z, rotation_y, score]
+        
+        # Write the formatted data to file
+        with open(filename, 'a') as f:
+            formatted_data = ' '.join(str(value) for value in row) + '\n'
+            f.write(formatted_data)
+
+    return
+
 
 def save_timeframe_results(frame_t_:int, ds_tracked_objects_:dict, pointcloud_dict_:dict, object_tracker_:ObjectTracker,  filename:str):
     """

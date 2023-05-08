@@ -7,7 +7,6 @@ import numpy as np
 from typing import Dict, List
 
 class ObjectTracker():
-    _trajectory: Dict[int, np.ndarray] # obj.id -> np.ndarray of shape (3) # could be a np.ndarray of shape (t,3)
     def __init__(self):
         self.objects_in_time: Dict[int, Dict] = dict()  # time -> trajectory:= dict of obj.id -> np.ndarray of shape (3)
 

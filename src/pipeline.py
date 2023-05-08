@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List
 from ultralytics import YOLO
-
+from tqdm import tqdm
 import open3d as o3d
 
 
@@ -26,7 +26,9 @@ from utils.utils import (
     SEQ_01,
     SEQ_02,
     SEQ_03,
-    get_frames,)
+    get_frames,
+    get_all_frames)
+
 from utils.ObjectTracker import ObjectTracker
 from utils.deepsort_utils import (
     LABELS_DICT,
@@ -53,21 +55,11 @@ def get_tracking_devices(yolo_model_: Path, deepsort_model_: Path):
     return encoder, tracker, detector
 
 
-def get_track_objects(
-    encoder_: np.ndarray,
-    tracker_: Tracker,
-    detector_: YOLO,
-    frame_l_: np.ndarray,
-    frame_t: int,
-) -> Dict[int, DeepSortObject]:
+def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, frame_l_:np.ndarray, frame_t:int) -> Dict[int, DeepSortObject]:
     print("Detecting objects")
-    _results_t = detector_.predict(
-        frame_l_, classes=[0, 1, 2]
-    )  # Output: List of objects (one per detection in frame)
+    _results_t = detector_.predict(frame_l_, classes=[0, 1, 2])  # Output: List of objects (one per detection in frame)
     _results_t = _results_t[0]
-    _masks_t = resize_masks(
-        masks=_results_t.masks.data.numpy(), orig_shape=_results_t.masks.orig_shape
-    )
+    _masks_t = resize_masks(masks=_results_t.masks.data.numpy(), orig_shape=_results_t.masks.orig_shape)
 
     if not _results_t:
         return None
@@ -76,7 +68,7 @@ def get_track_objects(
     _OCCLUSION_THRESHOLD = 1  # timestep duration of an object not being detected before we consider it occluded
 
     _detections_t = []
-    for _result, _maks in zip(_results_t.boxes, _masks_t):
+    for _result, _mask in zip(_results_t.boxes, _masks_t):
         # NOTE: I'm overriding id to match "class_id" aka 0,1,etc for label
         # another note: we can't create the DeepSortObject ahead of time like this
         # because later there is no way to match deepsort's track object to these (because for the bounding boxes are slightly diff
@@ -90,7 +82,7 @@ def get_track_objects(
             cls=_cls,
             confidence=float(_result.conf[0]),
             xyxy=_result.xyxy.tolist()[0],
-            mask=_maks.astype(bool),
+            mask=_mask.astype(bool),
         )
 
         _detections_t.append(_dso)
@@ -156,9 +148,10 @@ def main(seq_: Path):
     results.reset_results_file(RESULTS_FILENAME)
 
     # global variables
-    FRAMES = [(_l, _r)
-        for _l, _r in [get_frames(frame_num_=i, seq_dir_=seq_) for i in range(2)]
-    ]
+    _first_frame = 0
+    _last_frame = 10
+    FRAMES = [(_l, _r) for _l, _r in [get_frames(frame_num_=i, seq_dir_=seq_) for i in range(_first_frame,_last_frame+1)]]
+    # FRAMES = get_all_frames(seq_dir_=seq_)
 
     KINEMATIC_PREDICTION = True  # True if prediction by DeepSort
     DS_PREDICTION = not KINEMATIC_PREDICTION  # True if prediction by kinematics
@@ -182,7 +175,7 @@ def main(seq_: Path):
     )
     print("Models loaded")
 
-    for _frame_t, (_frame_l_t, _frame_r_t) in enumerate(FRAMES):
+    for _frame_t, (_frame_l_t, _frame_r_t) in enumerate(tqdm(FRAMES)):
         print("\nAnalyzing frame", _frame_t)
         # 1. det tracked objects in frame t
         # ds_objects are represents the status in frame t of the tracked objects.
@@ -196,7 +189,7 @@ def main(seq_: Path):
         disparity_frame, __ = depth_est.semiGlobalMatchMap(_frame_l_t, _frame_r_t)
 
         _pointclouds_t = dict()  # key: object id, value: pointcloud of object #TODO: implement this logic, and deprecate the _objs_to_reconstruct_t list
-        if _frame_t == 0:
+        if _frame_t == _first_frame:
             for _obj_id, _obj in ds_objs_t.items():
                 _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj.mask], Q, MIN_PCD_SIZE)
                 if _possible_pc:
@@ -211,7 +204,7 @@ def main(seq_: Path):
                     cls = _obj_t.label
                     _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj_t.mask], Q, MIN_PCD_SIZE)
                     if _possible_pc:
-                        print(f"Frame {_frame_t} | adding object {_obj}:{cls} to  3D reconstruction")
+                        print(f"Frame {_frame_t} | adding object {_obj_t} to  3D reconstruction")
                         _pointclouds_t[_obj_t.id] = _possible_pc[0]
 
                 else: # object in last frame is not in current frame (OCCLUSION)
@@ -241,7 +234,7 @@ def main(seq_: Path):
         lastFrameIds = set(ds_objs_t.keys())
     
         # save results for time t to results.txt file
-        results.save_timeframe_results(_frame_t, ds_objs_t, _pointclouds_t,object_tracker, RESULTS_FILENAME)
+        results.new_save_timeframe_results(_frame_t, object_tracker, ds_objs_t, _pointclouds_t, RESULTS_FILENAME)
 
 
     return
