@@ -1,4 +1,4 @@
-from final_project.src.depth.registration import calculate_bounding_box, get_avg_point_pointCloud
+from depth.registration import calculate_bounding_box, get_avg_point_pointCloud
 import open3d as o3d
 import numpy as np
 """
@@ -22,17 +22,17 @@ def write_results_to_file(frame_id, ds_track_objects, cluster_dicc, tracker,  fi
 
         track_id = ds_track_objects.id 
         otype = ds_track_objects.cls
-        truncated = 0 # TODO:  change this
         occluded =  _obj.ocluded() == -1
+        truncated = 0 # TODO:  change this
         alpha = 0 # TODO:  change this
 
         # 2D bounding box of object in the image
         # Obtain from YoloInDeepSort
         _obj.xyxy.tolist()[0]
-        bbox_left = 0 
-        bbox_top = 0 
-        bbox_right = 0 
-        bbox_bottom = 0 
+        bbox_left = _obj.xyxy.tolist()[0]
+        bbox_top = _obj.xyxy.tolist()[1] 
+        bbox_right = _obj.xyxy.tolist()[2] 
+        bbox_bottom = _obj.xyxy.tolist()[3]
 
         # get fetch pointcloud
         cluster = cluster_dicc[_obj_id]
@@ -68,9 +68,6 @@ def write_results_to_file(frame_id, ds_track_objects, cluster_dicc, tracker,  fi
         prev_location = tracker.get_object_trajectory(frame_id - 1, track_id)
         score = _obj.confidence 
         # Obtain from clusterList2 with same index and obtain rotation of vector
-        
-        
-        # Obtain from DeepSort
         
         row.append(frame_id)
         row.append(track_id)
