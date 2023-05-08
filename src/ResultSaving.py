@@ -58,19 +58,28 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
 
 
         # If we find the object obtain box dimensions
-        possible_points = pointcloud_dict_.get(frame_t_)
+        possible_points = pointcloud_dict_.get(_obj_id)
         if(possible_points != None):
             bbox = calculate_bounding_box(possible_points)
             max_bound = bbox.get_max_bound()
             min_bound = bbox.get_min_bound()
-            width = -1*(max_bound[0] - min_bound[0])
-            height = -1*(max_bound[1] - min_bound[1])
-            length = -1*(max_bound[2] - min_bound[2])
+            width = -(max_bound[0] - min_bound[0])
+            height = -(max_bound[1] - min_bound[1])
+            length = -(max_bound[2] - min_bound[2])
         
             # offset the location to be the center of the bottom box
-            x = x - (width/2)
-            y = y - (height/2)
-            z = z - (length/2)
+            # get point from bbox
+            box_corners = bbox.get_box_points()
+            lower_corners = np.asarray([box_corners[0], box_corners[1], box_corners[3], box_corners[6]])
+            # compute the center point of the lower plane vertices
+            lower_center = np.mean(lower_corners, axis=0)
+
+            # create bbox from cluster
+            # convert to left hand coordinates for openCV
+            x = lower_center[0]
+            y = lower_center[1]
+            z = lower_center[2]
+
 
         location = _obj_pos
         try:
