@@ -130,15 +130,15 @@ def get_cam_matrices(calib_filepath_:Path):
             rectRot2, rectRot3, camMatrix2, camMatrix3, intrinsic2, intrinsic3
 
 def get_Q_matrix(img_size:tuple, calib_filepath_:Path):
-    rot2, rot3, trans2, trans3, imgSize2, imgSize3, rectRot2, rectRot3,\
-    cam2, cam3, k2, k3 = get_cam_matrices(calib_filepath_)
+    _, _, _, _, _, _, _, _,\
+    projection_mat_l, projection_mat_r, _, _ = get_cam_matrices(calib_filepath_)
     
-    cam2 = cam2[:,:3]
-    cam3 = cam3[:,:3]
+    projection_mat_l = projection_mat_l[:,:3]
+    projection_mat_r = projection_mat_r[:,:3]
     Tmat = np.array([0.54, 0.0, 0.0])   # From the KITTI Sensor setup, in metres
     
     cvQ = np.zeros((4,4))
-    cv2.stereoRectify(cameraMatrix1=cam2, cameraMatrix2=cam3, distCoeffs1=0, distCoeffs2=0,
+    cv2.stereoRectify(cameraMatrix1=projection_mat_l, cameraMatrix2=projection_mat_r, distCoeffs1=0, distCoeffs2=0,
                         imageSize=img_size, R=np.identity(3), T=Tmat, 
                         R1=None, R2=None,P1=None, P2=None, Q=cvQ)
     return cvQ
