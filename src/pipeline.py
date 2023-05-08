@@ -79,6 +79,9 @@ def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, fra
 
         # QUESTION: Does this mean that the code below is unnecessary there?
         _cls = int(_result.cls[0])
+        if float(_result.conf[0]) < 0.5:
+            continue
+
         _dso = DeepSortObject(
             id=int(_cls),  # This changes later with deepsort,
             cls=_cls,
@@ -156,7 +159,7 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
     FRAMES = get_all_frames(seq_dir_=seq_)
 
     # disparity map and 3d reconstruction variables
-    MIN_PCD_SIZE = (2500)  # minimum number of points in a pointcloud to be considered valid
+    MIN_PCD_SIZE = (1000)  # minimum number of points in a pointcloud to be considered valid
 
     Q = depth_est.get_Q_matrix(
         FRAMES[0][0].shape[:2], DATA_DIR / "calib_cam_to_cam.txt"
@@ -220,14 +223,18 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
                     # kinematics estimation
 
                     _pos_obj_t = object_tracker.predict_position(_past_obj_id, _frame_t)
-                    _p_image = project_to_image(_pos_obj_t, CAM_MAT_L[:,:3]) # we only care for the rotation.
-                    # if _p_image in closer to the frame the do not add it to the reconstruction
-                    FRAME_FENCE = 10
-                    if _p_image[0] < FRAME_FENCE or _p_image[0] > _frame_l_t.shape[1]-FRAME_FENCE or _p_image[1] < FRAME_FENCE or _p_image[1] > _frame_l_t.shape[0]- FRAME_FENCE:
-                        print(f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
-                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
-                        continue
-                    object_tracker.update_position(time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t)
+                    if(_pos_obj_t != None):
+                        #_p_image = project_to_image(_pos_obj_t, CAM_MAT_L[:,:3]) # we only care for the rotation.
+                        _p_image =  CAM_MAT_L[:,:3] @ _pos_obj_t
+                        _p_image /= _p_image[2]
+                        point_2d = _p_image[:2]
+                        # if _p_image in closer to the frame the do not add it to the reconstruction
+                        FRAME_FENCE = 10
+                        if point_2d[0] < FRAME_FENCE or point_2d[0] > _frame_l_t.shape[1]-FRAME_FENCE or point_2d[1] < FRAME_FENCE or point_2d[1] > _frame_l_t.shape[0]- FRAME_FENCE:
+                            print(f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
+                            results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
+                            continue
+                        object_tracker.update_position(time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t)
         
 
         #o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
@@ -264,4 +271,4 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
 
 
 if __name__ == "__main__":
-    main(SEQ_01, begin_frame_=0, end_frame_=144)
+    main(SEQ_02, begin_frame_=0, end_frame_=208)

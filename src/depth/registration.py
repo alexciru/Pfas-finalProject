@@ -60,14 +60,19 @@ def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_mas
     post_cluster1_list = []
     for _pcd in _objs_pointclouds:
         # Cluster the point to remove the noise from the background  
-        labels = cluster_BDscan(_pcd, eps=0.0075, min_samples=100)
-        
+        if len(_pcd.points) == 0:
+            continue
+        labels = cluster_BDscan(_pcd, eps=0.035, min_samples=300)
+        #o3d.visualization.draw_geometries([_pcd])
+        #draw_labels_on_model(_pcd, labels)
+
         # Get the biggest cluster 
         _pcd = get_biggest_cluster(_pcd, labels)
-    
+
         # TODO [By:Alex]: this is not relevant anymore
         _pcd = remove_outliers_from_pointCloud(_pcd)
 
+            
         # Calculate the vector of translation
         if len(_pcd.points) > min_pcd_size_:
             post_cluster1_list.append(_pcd)

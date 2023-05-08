@@ -37,11 +37,12 @@ class ObjectTracker():
             p1 = self.objects_in_time[time_-1][obj_key_]
             p2 = self.objects_in_time[time_ - 2][obj_key_]
             dx = p1 - p2
+            return self.objects_in_time[time_-1][obj_key_] + dx
             # dx = self.objects_in_time[time_-1][obj_key_] - self.objects_in_time[time_ - 2][obj_key_]
         except Exception as e:
             print("Not possible to predict position of object with id: {} at time: {}".format(obj_key_, time_))
-
-        return self.objects_in_time[time_-1][obj_key_] + dx
+            return None
+        
     
     def get_object_trajectory(self, obj_key_:int) -> List[np.ndarray]:
         """

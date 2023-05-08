@@ -1,6 +1,6 @@
 import glob
 from visualization.Box3D import *
-from utils.utils import ROOT_DIR, DATA_DIR, SEQ_01
+from utils.utils import ROOT_DIR, DATA_DIR, SEQ_01, SEQ_02, SEQ_03
 
 def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=False):
     """Function to render the image with the 3D bounding boxes.
@@ -11,7 +11,7 @@ def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=Fals
         frame (int): the frame number in the sequence 
         time (int, optional): how long to display. Defaults to 10.
     """    
-    img1 = np.copy(img)
+    img1 = np.copy(img)  
     for obj in objects[frame]:
         box3d_pixelcoord = map_box_to_image(obj, p2Matrix)
         img1 = draw_projected_box3d(img1, box3d_pixelcoord, obj, frame)
@@ -26,9 +26,9 @@ def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=Fals
 
 if __name__ == '__main__':
     CAM_TO_CAM = DATA_DIR / 'calib_cam_to_cam.txt'
-    GROUND_TRUTH = SEQ_01 / 'labels.txt'
-    RESULTS = ROOT_DIR / 'results/seq_01_results.txt'
-    SEQUENCE = ROOT_DIR / 'data/video_rect/seq_01/'
+    GROUND_TRUTH = SEQ_02 / 'labels.txt'
+    RESULTS = ROOT_DIR / 'results/seq_02_results.txt'
+    SEQUENCE = ROOT_DIR / 'data/video_rect/seq_02/'
     
     p2Matrix = readProjectionMatrix(CAM_TO_CAM)         # Load the projection matrix for the left RGB camera
     gtLabels = load_label(GROUND_TRUTH)                 # Load the labels to use as ground truth
