@@ -17,7 +17,7 @@ from tracking.deep_sort.tools import generate_detections as gdet
 
 import depth.estimation as depth_est
 import depth.registration as depth_reg
-from ResultSaving import write_results_to_file
+import ResultSaving as results
 
 
 from utils.utils import (
@@ -149,22 +149,23 @@ def get_track_objects(
     return ds_objects
 
 
-def main():
+def main(seq_: Path):
     print("\n--- Starting pipeline ---")
 
+    RESULTS_FILENAME = ROOT_DIR / f"results/{seq_.name}_results.txt"
+    results.reset_results_file(RESULTS_FILENAME)
+
     # global variables
-    FRAMES = [
-        (_l, _r)
-        for _l, _r in [get_frames(frame_num_=i, seq_dir_=SEQ_01) for i in range(2)]
+    FRAMES = [(_l, _r)
+        for _l, _r in [get_frames(frame_num_=i, seq_dir_=seq_) for i in range(2)]
     ]
 
     KINEMATIC_PREDICTION = True  # True if prediction by DeepSort
     DS_PREDICTION = not KINEMATIC_PREDICTION  # True if prediction by kinematics
 
     # disparity map and 3d reconstruction variables
-    MIN_PCD_SIZE = (
-        1000  # minimum number of points in a pointcloud to be considered valid
-    )
+    MIN_PCD_SIZE = (1000)  # minimum number of points in a pointcloud to be considered valid
+
     Q = depth_est.get_Q_matrix(
         FRAMES[0][0].shape[:2], DATA_DIR / "calib_cam_to_cam.txt"
     )
@@ -172,7 +173,7 @@ def main():
     # dynamic variables
     object_tracker = ObjectTracker()
 
-    lastFrameIds = {}  # List of objects detected in last frame
+    lastFrameIds = set()  # List of objects detected in last frame
 
     print("Loading models")
     encoder, ds_tracker, ds_detector = get_tracking_devices(
@@ -239,12 +240,12 @@ def main():
 
         lastFrameIds = set(ds_objs_t.keys())
     
-        # save results to .txt file
-        write_results_to_file(_frame_t, ds_objs_t, _pointclouds_t, object_tracker, "results.txt")
+        # save results for time t to results.txt file
+        results.save_timeframe_results(_frame_t, ds_objs_t, _pointclouds_t,object_tracker, RESULTS_FILENAME)
 
 
     return
 
 
 if __name__ == "__main__":
-    main()
+    main(SEQ_01)

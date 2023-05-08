@@ -102,7 +102,7 @@ class DeepSortObject():
         return LABELS_DICT.get(self.cls, UNKNOWN_DEFAULT)
     
     @property
-    def occluded(self):
+    def occluded(self)->bool: 
         return self.confidence == -1
 
     @property

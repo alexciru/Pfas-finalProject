@@ -1,92 +1,86 @@
-from depth.registration import calculate_bounding_box, get_avg_point_pointCloud
 import open3d as o3d
 import numpy as np
+from pathlib import Path
+
+# own
+from utils.ObjectTracker import ObjectTracker
+from utils.deepsort_utils import LABELS_DICT
+from depth.registration import calculate_bounding_box, get_avg_point_pointCloud
 """
 Funtion to save the results of the object detection to a file
 Format:
     frame_id, track_id, type, truncated, occluded, alpha, bbox_left, bbox_top, bbox_right, bbox_bottom, height, width, length, x, y, z, rotation_y
 """
+def reset_results_file(filename_:Path):
+    """
+    Resets the file with the given filename
+    """
+    with open(filename_, 'w') as f:
+        f.write("")
 
-
-
-def write_results_to_file(frame_id, ds_track_objects, cluster_dicc, tracker,  filename = "results.txt"):
+def save_timeframe_results(frame_t_:int, ds_tracked_objects_:dict, pointcloud_dict_:dict, object_tracker_:ObjectTracker,  filename:str):
+    """
+    Saves the results of the given timeframe to the given file
+    """
     
-    # Get the data from the pointcloud1 
-    # pointcloud2 only use for calculating the vector beetween frames
-    # and the translation vector
-
-    # get all the data from the deepSortObject in frame f
-    
-    for _obj_id, _obj in ds_track_objects.items():
+    for _ds_obj_id, _ds_obj in ds_tracked_objects_.items():
         row = []
 
-        track_id = ds_track_objects.id 
-        otype = ds_track_objects.cls
-        occluded =  _obj.ocluded() == -1
-        truncated = 0 # TODO:  change this
-        alpha = 0 # TODO:  change this
 
         # 2D bounding box of object in the image
         # Obtain from YoloInDeepSort
-        _obj.xyxy.tolist()[0]
-        bbox_left = _obj.xyxy.tolist()[0]
-        bbox_top = _obj.xyxy.tolist()[1] 
-        bbox_right = _obj.xyxy.tolist()[2] 
-        bbox_bottom = _obj.xyxy.tolist()[3]
+     
+        bbox_left = _ds_obj.xyxy[0]
+        bbox_top = _ds_obj.xyxy[1]
+        bbox_right = _ds_obj.xyxy[2]
+        bbox_bottom = _ds_obj.xyxy[3]
 
-        # get fetch pointcloud
-        cluster = cluster_dicc[_obj_id]
-        bbox = calculate_bounding_box(cluster)
+        # get pointcloud ``
+        obj_pcd = pointcloud_dict_.get(_ds_obj_id)
 
-        max_bound = bbox.get_max_bound()
-        min_bound = bbox.get_min_bound()
+        # bbox = calculate_bounding_box(obj_pcd)
+
+        # max_bound = bbox.get_max_bound()
+        # min_bound = bbox.get_min_bound()
 
         # Calculate the dimensions
-        width = max_bound[0] - min_bound[0]
-        height = max_bound[1] - min_bound[1]
-        length = max_bound[2] - min_bound[2]
-        # dimensions in camera coordinates
+        # width = -1* (max_bound[0] - min_bound[0])
+        # height = -1* (max_bound[1] - min_bound[1])
+        # length = -1* (max_bound[2] - min_bound[2])
 
+        # dimensions in camera coordinates
         # center location in camera coordinates
         # obtain from cluter, make a box and get the center
-        avg_point = get_avg_point_pointCloud(cluster)
-        box_corners = bbox.get_box_points()
-        lower_corners = box_corners[0:4]
-        # compute the center point of the lower plane vertices
-        lower_center = np.mean(lower_corners, axis=0)
-
-        # create bbox from cluster
-        # convert to left hand coordinates for openCV
-        x = lower_center[0]
-        y = lower_center[1]
-        z = lower_center[2]
-
-        rotation_y = 0 # TODO: change this
 
         # get rotation vector from previous location
-        location = tracker.get_object_trajectory(frame_id, track_id)
-        prev_location = tracker.get_object_trajectory(frame_id - 1, track_id)
-        score = _obj.confidence 
-        # Obtain from clusterList2 with same index and obtain rotation of vector
+        location = object_tracker_.get_object_trajectory(_ds_obj_id)[frame_t_]
+        prev_location = object_tracker_.get_object_trajectory(_ds_obj_id)[frame_t_-1]
+        try:
+            rotation_y = np.arctan2(location[2] - prev_location[2], location[0] - prev_location[0])
+        except:
+            print(f"rotation for object {_ds_obj_id} in frame {frame_t_} could not be calculated")
+            rotation_y = 0
         
-        row.append(frame_id)
-        row.append(track_id)
-        row.append(otype)
-        row.append(truncated)
-        row.append(occluded)
-        row.append(alpha)
-        row.append(bbox_left)
-        row.append(bbox_top)
-        row.append(bbox_right)
-        row.append(bbox_bottom)
-        row.append(height)
-        row.append(width)
-        row.append(length)
-        row.append(x)
-        row.append(y)
-        row.append(z)
-        row.append(rotation_y)
-        row.append(score)
+        # row format
+        # frame_id, track_id, label, truncated, occluded, alpha, bbox_left, bbox_top, bbox_right, bbox_bottom, height, width, length, x, y, z, rotation_y
+        row.append(frame_t_) # frame_id
+        row.append(_ds_obj_id) # track_id
+        row.append(LABELS_DICT.get(_ds_obj.cls)) # label
+        row.append(0) # TODO: truncated pending
+        row.append(_ds_obj.occluded) # occluded
+        row.append(0) #TODO: alpha pending
+        row.append(bbox_left) # 2D bbox left
+        row.append(bbox_top) # 2D bbox top
+        row.append(bbox_right) # 2D bbox right
+        row.append(bbox_bottom) # 2D bbox bottom
+        row.append(0) # 3D bbox height # TODO Pending
+        row.append(0) # 3D bbox width # TODO Pending
+        row.append(0) # 3D bbox length # TODO Pending
+        row.append(location[0]) # x
+        row.append(location[1]) # y
+        row.append(location[2]) # z
+        row.append(rotation_y) # rotation_y
+        row.append(_ds_obj.confidence ) # score
 
         formatted_data = ' '.join(str(value) for value in row) + '\n'
 

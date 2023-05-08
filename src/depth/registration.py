@@ -206,7 +206,7 @@ def calculate_translation_ICP(pointCloud_frame1, pointCloud_frame2):
        This fucntion asumes that the pointcloud belong to the same cluster in different frames"""
     raise NotImplementedError()
 
-def calculate_bounding_box(pointCloud, color = (0,255,0)):
+def calculate_bounding_box(pointCloud):
     """Calculate the bounding box of the point cloud"""
     return pointCloud.get_axis_aligned_bounding_box()
 
