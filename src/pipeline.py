@@ -25,15 +25,14 @@ from utils.utils import (
     SEQ_01,
     SEQ_02,
     SEQ_03,
-    get_frames,
-)
+    get_frames,)
 from utils.ObjectTracker import ObjectTracker
 from utils.deepsort_utils import (
     LABELS_DICT,
     UNKNOWN_DEFAULT,
     DeepSortObject,
     resize_masks,
-)
+    )
 
 
 def get_tracking_devices(yolo_model_: Path, deepsort_model_: Path):
