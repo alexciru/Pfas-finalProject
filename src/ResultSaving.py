@@ -40,13 +40,29 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
         bbox_right = ds_tracked_objects_[_obj_id].xyxy[2]
         bbox_bottom = ds_tracked_objects_[_obj_id].xyxy[3]
 
-        
         height = 0 # TODO
         width = 0 # TODO
         length = 0 # TODO
+
         x = _obj_pos[0]
         y = _obj_pos[1]
         z = _obj_pos[2]
+
+
+        # If we find the object obtain box dimensions
+        possible_points = pointcloud_dict_.get(frame_t_)
+        if(possible_points != None):
+            bbox = calculate_bounding_box(possible_points)
+            max_bound = bbox.get_max_bound()
+            min_bound = bbox.get_min_bound()
+            width = max_bound[0] - min_bound[0]
+            height = max_bound[1] - min_bound[1]
+            length = max_bound[2] - min_bound[2]
+        
+            # offset the location to be the center of the bottom box
+            x = x - (width/2)
+            y = y - (height/2)
+            z = z - (length/2)
 
         location = _obj_pos
         prev_location = object_tracker_.get_object_trajectory(_obj_id)[frame_t_-1]
