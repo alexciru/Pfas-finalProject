@@ -1,6 +1,8 @@
 #!/bin/env python
 # Created by Jonathan Mikler on 07/May/23
 
+import time
+from datetime import datetime
 import numpy as np
 from pathlib import Path
 from typing import Dict, List
@@ -150,6 +152,8 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
     results.reset_file(RESULTS_FILENAME)
     results.reset_file(LOG_FILENAME)
 
+    results.log_info(LOG_FILENAME, f"time: {datetime.now().strftime('%H:%M:%S')}")
+
     # global variables
     # FRAMES = [(_l, _r) for _l, _r in [get_frames(frame_num_=i, seq_dir_=seq_) for i in range(_first_frame,_last_frame+1)]]
     FRAMES = get_all_frames(seq_dir_=seq_)
@@ -178,7 +182,8 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
         if _frame_t > end_frame_ or _frame_t < begin_frame_:
             continue
         print("\n\nAnalyzing frame", _frame_t)
-        results.log_info(LOG_FILENAME, f"main | Analyzing frame {_frame_t}")
+
+        results.log_info(LOG_FILENAME, f"Analyzing frame {_frame_t} | {datetime.now().strftime('%H:%M:%S')}")
         # 1. det tracked objects in frame t
         # ds_objects are represents the status in frame t of the tracked objects.
         # If an object detected in t'<t and not in t, it is occluded and will have a confidence of -1 and the .occluded property will be True
@@ -188,7 +193,7 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
             print(f"No objects detected in frame {_frame_t}")
             continue
 
-        print(f"main | {len(ds_objs_t)} objects detected in frame {_frame_t})")
+        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | Objects detected in frame: {ds_objs_t.keys()}")
 
         disparity_frame, __ = depth_est.semiGlobalMatchMap(_frame_l_t, _frame_r_t)
 
@@ -205,19 +210,19 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
                 # object position estimation
                 if (_past_obj_id in ds_objs_t.keys()):  # object in last frame is in current frame
                     _ds_obj_t = ds_objs_t.get(_past_obj_id)
-                    results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected in frame: {ds_objs_t.keys()}")
-
                     _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_ds_obj_t.mask], Q, MIN_PCD_SIZE)
                     if _possible_pc:
                         print(f"Frame {_frame_t} | adding object {_ds_obj_t} to  3D reconstruction")
                         _pointclouds_t[_ds_obj_t.id] = _possible_pc[0]
                     else:
-                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_ds_obj_t.id} not added to 3D reconstruction")
+                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_ds_obj_t.id} cloud too small. not added to 3D reconstruction")
 
                 else: # object in last frame is not in current frame (OCCLUSION)
                     # kinematics estimation
-
                     _pos_obj_t = object_tracker.predict_position(_past_obj_id, _frame_t)
+                    if _pos_obj_t is None:
+                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_past_obj_id} not found in frame {_frame_t} and not predicted")
+                        continue
                     _p_image = project_to_image(_pos_obj_t, CAM_MAT_L[:,:3]) # we only care for the rotation.
                     # if _p_image in closer to the frame the do not add it to the reconstruction
                     FRAME_FENCE = 10
@@ -229,10 +234,10 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
             
         # QUESTION: Should this update of last objects happen also starting from frame 0?
         deleted_ids = lastFrameIds - set(ds_objs_t.keys())
-        print(f"IDs no longer tracked: {deleted_ids}")
-        print(f"Newly tracking IDs: {set(ds_objs_t.keys()) - lastFrameIds}")
+        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | IDs no longer tracked: {deleted_ids}")
+        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | Newly tracking IDs: {set(ds_objs_t.keys()) - lastFrameIds}")
         occluded_objs = [ob.id for ob in ds_objs_t.values() if ob.occluded]
-        print(f"Occluded objects: {occluded_objs}")
+        results.log_info(LOG_FILENAME,f"Frame {_frame_t} | Occluded objects: {occluded_objs}")
 
         # 3. reconstruct objects in 3D
         # for pc_id, pc in _pointclouds_t.items():
@@ -247,8 +252,8 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
             object_tracker.update_position(time_=_frame_t, obj_key_=_ds_obj_t, position_=_obj_central_position)
 
         results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects tracked in frame {object_tracker.objects_in_time[_frame_t].keys()}")
-        lastFrameIds = set(ds_objs_t.keys())
         results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected in last frame: {lastFrameIds}")
+        lastFrameIds = set(ds_objs_t.keys())
     
         # save results for time t to results.txt file
         results.new_save_timeframe_results(_frame_t, object_tracker, ds_objs_t, _pointclouds_t, RESULTS_FILENAME)

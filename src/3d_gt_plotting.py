@@ -16,6 +16,7 @@ def render_image_with_boxes(img, objects, p2Matrix, frame, time=10, results=Fals
         box3d_pixelcoord = map_box_to_image(obj, p2Matrix)
         img1 = draw_projected_box3d(img1, box3d_pixelcoord, obj, frame)
         img1 = drawXYZlocation(img1, obj, p2Matrix)
+        img1 = add_frame_num(img1, frame)
 
     img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
     if results:
