@@ -19,6 +19,8 @@ class ObjectTracker():
             position_: np.ndarray -- position of the object at time_
         """
         assert position_.shape == (3,), "Position must be a np.ndarray of shape (3,)"
+
+        print(f"ObjectTracker | Updating position of object {obj_key_} at time {time_}")
         if self.objects_in_time.get(time_):
             self.objects_in_time[time_][obj_key_] = position_
         else:
@@ -32,7 +34,10 @@ class ObjectTracker():
             time_: int      -- time step
         """
         try:
-            dx = self.objects_in_time[time_+1][obj_key_] - self.objects_in_time[time_ - 2][obj_key_]
+            p1 = self.objects_in_time[time_-1][obj_key_]
+            p2 = self.objects_in_time[time_ - 2][obj_key_]
+            dx = p1 - p2
+            # dx = self.objects_in_time[time_-1][obj_key_] - self.objects_in_time[time_ - 2][obj_key_]
         except Exception as e:
             print("Not possible to predict position of object with id: {} at time: {}".format(obj_key_, time_))
 

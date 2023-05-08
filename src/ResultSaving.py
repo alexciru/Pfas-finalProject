@@ -12,12 +12,20 @@ Funtion to save the results of the object detection to a file
 Format:
     frame_id, track_id, type, truncated, occluded, alpha, bbox_left, bbox_top, bbox_right, bbox_bottom, height, width, length, x, y, z, rotation_y
 """
-def reset_results_file(filename_:Path):
+def reset_file(filename_:Path):
     """
     Resets the file with the given filename
     """
     with open(filename_, 'w') as f:
         f.write("")
+
+    
+def log_info(filename_:Path, text_:str):
+    """
+    Writes the given text to the given file
+    """
+    with open(filename_, 'a') as f:
+        f.write(text_ + '\n')
 
 def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_tracked_objects_:Dict[int, DeepSortObject], pointcloud_dict_:dict,  filename:str):
     """
@@ -31,7 +39,7 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
     for _obj_id, _obj_pos in objects_in_t.items():
         frame_id = frame_t_
         obj_id = _obj_id
-        label = ds_tracked_objects_[_obj_id].cls
+        label = LABELS_DICT.get(ds_tracked_objects_[_obj_id].cls)
         truncated = 0 # TODO
         occluded = ds_tracked_objects_[_obj_id].cls
         alpha = 0 # TODO
@@ -55,9 +63,9 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
             bbox = calculate_bounding_box(possible_points)
             max_bound = bbox.get_max_bound()
             min_bound = bbox.get_min_bound()
-            width = max_bound[0] - min_bound[0]
-            height = max_bound[1] - min_bound[1]
-            length = max_bound[2] - min_bound[2]
+            width = -1*(max_bound[0] - min_bound[0])
+            height = -1*(max_bound[1] - min_bound[1])
+            length = -1*(max_bound[2] - min_bound[2])
         
             # offset the location to be the center of the bottom box
             x = x - (width/2)
@@ -65,8 +73,8 @@ def new_save_timeframe_results(frame_t_:int, object_tracker_:ObjectTracker, ds_t
             z = z - (length/2)
 
         location = _obj_pos
-        prev_location = object_tracker_.get_object_trajectory(_obj_id)[frame_t_-1]
         try:
+            prev_location = object_tracker_.get_object_trajectory(_obj_id)[frame_t_-1]
             _rotation_y = np.arctan2(location[2] - prev_location[2], location[0] - prev_location[0])
         except:
             print(f"rotation for object {_obj_id} in frame {frame_t_} could not be calculated")
