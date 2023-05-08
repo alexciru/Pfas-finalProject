@@ -256,7 +256,7 @@ def main():
 
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
 
-            object_tracker.register_position(_obj_t, _frame_t, _obj_central_position)
+            object_tracker.update_position(_obj_t, _frame_t, _obj_central_position)
 
         lastFrameIds = set(ds_objs_t.keys())
 
