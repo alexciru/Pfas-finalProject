@@ -4,6 +4,7 @@ import numpy as np
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 import ultralytics.yolo.utils.ops as yolo_utils
+import cv2
 
 LABELS_DICT = {
     0: "Pedestrian",
@@ -102,7 +103,7 @@ class DeepSortObject():
         return LABELS_DICT.get(self.cls, UNKNOWN_DEFAULT)
     
     @property
-    def occluded(self):
+    def occluded(self)->bool: 
         return self.confidence == -1
 
     @property
@@ -118,6 +119,14 @@ class DeepSortObject():
     def __repr__(self) -> str:
         return f"DeepSortObject(id={self.id}, cls={self.cls}, label={self.label}, confidence={self.confidence})"
     
+    def get_avg_mask(self):
+        """ Return the avg position of the mask in the image"""
+        # calculate moments of binary image
+        y, x = np.nonzero(self.mask)
+        centroid_x = int(np.mean(x))
+        centroid_y = int(np.mean(y))
+        return (centroid_x, centroid_y)
+    
 def resize_masks(masks, orig_shape):
     # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image
     masks = np.moveaxis(masks, 0, -1)
@@ -127,6 +136,19 @@ def resize_masks(masks, orig_shape):
     # rearrange masks back to (N, H, W) for visualization
     masks = np.moveaxis(masks, -1, 0)
     return masks
+
+def get_closest_prediction(x, y, ds_pred):
+    """ Return the closest prediction to the given x,y coordinate"""
+    
+
+def combine_cyclist_clases(cyclist_preds: str, ds_objects: List[DeepSortObject]):
+    """ Combine pedestrian and bikes into cyclist class"""
+    
+    for c in cyclist_preds:
+        x, y = c.get_avg_mask()
+        closest = get_closest_prediction(x, y, ds_objects)
+        
+
 
 
 if __name__ == "__main__":

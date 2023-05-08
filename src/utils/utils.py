@@ -3,6 +3,7 @@
 import os, pathlib
 import cv2 as cv
 import pandas as pd
+import glob
 
 
 # root file has .git folder in it
@@ -29,6 +30,22 @@ SEQ_02 = DATA_DIR / "seq_02"
 SEQ_03 = DATA_DIR / "seq_03"
 
 
+def get_all_frames(seq_dir_):
+    """
+    returns all frames of the given sequence
+    :param seq_dir_: sequence directory (pathlib.Path)
+    :return: frames (list of np.ndarray)
+    """
+    _frames_l = []
+    for _frame_name in sorted((seq_dir_ / "image_02/data").glob("*.png")):
+        _frames_l.append(cv.cvtColor(cv.imread(str(_frame_name)), cv.COLOR_BGR2RGB))
+    
+    _frames_r = []
+    for _frame_name in sorted((seq_dir_ / "image_03/data").glob("*.png")):
+        _frames_r.append(cv.cvtColor(cv.imread(str(_frame_name)), cv.COLOR_BGR2RGB))
+    
+    return [(l, r) for l, r in zip(_frames_l, _frames_r)]
+
 def get_frames(frame_num_, seq_dir_):
     """
     returns the right and left frames of the given sequence for a given frame number
@@ -36,6 +53,7 @@ def get_frames(frame_num_, seq_dir_):
     :param seq_dir_: sequence directory (pathlib.Path)
     :return: right and left frame (np.ndarray, np.ndarray)
     """
+        
     _frame_name_r = str(seq_dir_ / "image_02/data" / f"{frame_num_:010d}.png")
     _frame_name_l = str(seq_dir_ / "image_03/data" / f"{frame_num_:010d}.png")
 

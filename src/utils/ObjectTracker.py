@@ -4,51 +4,59 @@
 import pathlib
 import numpy as np
 
-from typing import Dict
+from typing import Dict, List
 
 class ObjectTracker():
-    _trajectory: Dict[int, np.ndarray] # obj.id -> np.ndarray of shape (3) # could be a np.ndarray of shape (t,3)
     def __init__(self):
-        self.tracked_objects: Dict[int, Dict] = dict()  # obj.id -> trajectory
-        self.tracked_kinematics: Dict[int, np.ndarray] = dict() # obj.id -> deltaX # QUESTION: Maybe we want to keep track of the last K deltas?
+        self.objects_in_time: Dict[int, Dict] = dict()  # time -> trajectory:= dict of obj.id -> np.ndarray of shape (3)
 
-    def register_position(self, obj_key_:int, time_:int, position_:np.ndarray):
-        if obj_key_ in self.tracked_objects.keys():
-            self.tracked_objects[obj_key_][time_] = position_
+    def update_position(self, time_:int, obj_key_:int, position_:np.ndarray):
+        """
+        Registers the position of the object at time_
+        args:
+            time_: int      -- time step
+            obj_key_: int   -- object id
+            position_: np.ndarray -- position of the object at time_
+        """
+        assert position_.shape == (3,), "Position must be a np.ndarray of shape (3,)"
+
+        print(f"ObjectTracker | Updating position of object {obj_key_} at time {time_}")
+        if self.objects_in_time.get(time_):
+            self.objects_in_time[time_][obj_key_] = position_
         else:
-            self.tracked_objects[obj_key_] = {time_: position_}
+            self.objects_in_time[time_] = {obj_key_: position_}
 
-        if time_ > 0:
-            self.register_kinematics(obj_key_, time_, position_ - self.tracked_objects[obj_key_][time_ - 1])
-
-    def register_kinematics(self, obj_key_:int, time_:int, dx_:np.ndarray):
-        if obj_key_ in self.tracked_kinematics.keys():
-            self.tracked_kinematics[obj_key_][time_] = dx_
-        else:
-            self.tracked_kinematics[obj_key_] = {time_: dx_}
-    
-    def predict_position(self, obj_key_:int, before_time_:int) -> np.ndarray:
+    def predict_position(self, obj_key_:int, time_:int) -> np.ndarray:
         """
         Predicts the position of the object at before_time_ + 1
         args:
             obj_key_: int   -- object id
             time_: int      -- time step
         """
-        assert obj_key_ in self.tracked_objects.keys(), f"Object {obj_key_} not found in tracker"
-        assert before_time_ in self.tracked_objects[obj_key_].keys(), f"Position of object {obj_key_} not found at time {before_time_}"
-        assert before_time_ in self.tracked_kinematics[obj_key_].keys(), f"Kinematics of object {obj_key_} not found at time {before_time_}"
+        try:
+            p1 = self.objects_in_time[time_-1][obj_key_]
+            p2 = self.objects_in_time[time_ - 2][obj_key_]
+            dx = p1 - p2
+            p_obj_t = self.objects_in_time[time_-1][obj_key_] + dx
+            # dx = self.objects_in_time[time_-1][obj_key_] - self.objects_in_time[time_ - 2][obj_key_]
+        except Exception as e:
+            print("Not possible to predict position of object with id: {} at time: {}".format(obj_key_, time_))
+            p_obj_t = None
 
-        return self.tracked_objects.get(obj_key_).get(before_time_) + self.tracked_kinematics.get(obj_key_).get(before_time_)
-
-    def get_object_trajectory(self, obj_key_:int) -> Dict[int, np.ndarray]:
-        return self.tracked_objects.get(obj_key_)
-
-    def save_trajectories(self, save_dir_:pathlib.Path):
+        return p_obj_t
+    
+    def get_object_trajectory(self, obj_key_:int) -> List[np.ndarray]:
         """
-        Saves the trajectories to a txt file
-        args:
-            save_dir_: pathlib.Path -- directory to save the trajectories to
+            Return a list of positions of the object with obj_key_ given
+            in the case of the object not having a registered position at a given time step,
+            the position is None.
         """
+        return [self.objects_in_time[time_].get(obj_key_, None) for time_ in self.objects_in_time.keys()]
+
+
+
+
+
 
 
 if __name__ == '__main__':

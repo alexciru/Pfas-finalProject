@@ -52,7 +52,6 @@ def display_inlier_outlier(cloud, ind):
                                       up=[-0.0694, -0.9768, 0.2024])
 
 def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_masks_:List[np.ndarray], Q:np.ndarray, min_pcd_size_:int) -> List[o3d.geometry.PointCloud]:
-
     # Get list of objects from both frames
     _objs_pointclouds = make_pointclouds_from_masks(disparity_frame_, img_,  obj_masks_, Q)
 
@@ -60,7 +59,7 @@ def pointclouds_from_masks(disparity_frame_:np.ndarray, img_:np.ndarray, obj_mas
     post_cluster1_list = []
     for _pcd in _objs_pointclouds:
         # Cluster the point to remove the noise from the background  
-        labels = cluster_BDscan(_pcd, eps=0.01, min_samples=100)
+        labels = cluster_DBscan(_pcd, eps=0.0050, min_samples=100)
         
         # Get the biggest cluster 
         _pcd = get_biggest_cluster(_pcd, labels)
@@ -95,7 +94,7 @@ def New_ObtainListOfPontClouds(disparity_frame_, n_frame_, left_img_, bb_boxes, 
 
 
         # Cluster the point to remove the noise from the background  
-        labels1 = cluster_BDscan(cluster1, eps=0.01, min_samples=100)
+        labels1 = cluster_DBscan(cluster1, eps=0.01, min_samples=100)
 
         # remove outliers stadistical approach
         #draw_labels_on_model(cluster1, labels1)
@@ -151,38 +150,38 @@ def make_pointclouds_from_masks(disparity_map, img_, obj_masks_:List[np.ndarray]
     return pc_from_objmasks
 
 def generate_pointCloud(disparity_map, color_img,  Q):
-        """ Function to generate the pointcloud from the disparity map and the Q matrix """
-        points = cv2.reprojectImageTo3D(disparity_map, Q, handleMissingValues=False)
-        # reflect on x axis 
-        reflect_matrix = np.identity(3)
-        reflect_matrix[0] *= -1
-        #points = np.dot(points, reflect_matrix)
-        
-        
-        # extract colors from the image
-        # colors = cv2.cvtColor(color_img, cv2.COLOR_BGR2RGB) 
-        colors = color_img
+    """ Function to generate the pointcloud from the disparity map and the Q matrix """
+    points = cv2.reprojectImageTo3D(disparity_map, Q, handleMissingValues=False)
+    # reflect on x axis 
+    reflect_matrix = np.identity(3)
+    reflect_matrix[0] *= -1
+    #points = np.dot(points, reflect_matrix)
+    
+    
+    # extract colors from the image
+    # colors = cv2.cvtColor(color_img, cv2.COLOR_BGR2RGB) 
+    colors = color_img
 
-        # Remove the points with value 0 (no depth) one applied by mask
-        mask = disparity_map > disparity_map.min()
-        out_points = points[mask]
-        out_colors = colors[mask]
-        
-        # filter by dimension
-        idx = np.fabs(out_points[:,0]) < 4.5
-        out_points = out_points[idx]
-        out_colors = out_colors.reshape(-1, 3)
-        out_colors = out_colors[idx]
+    # Remove the points with value 0 (no depth) one applied by mask
+    mask = disparity_map > disparity_map.min()
+    out_points = points[mask]
+    out_colors = colors[mask]
+    
+    # filter by dimension
+    idx = np.fabs(out_points[:,0]) < 4.5
+    out_points = out_points[idx]
+    out_colors = out_colors.reshape(-1, 3)
+    out_colors = out_colors[idx]
 
-        return out_points, out_colors
+    return out_points, out_colors
 
 def remove_outliers_from_pointCloud(pointCloud):
     """Remove outliers using stadistical approach"""
-    cl, ind = pointCloud.remove_statistical_outlier(nb_neighbors=2, std_ratio=2.0)
+    cl, ind = pointCloud.remove_statistical_outlier(nb_neighbors=2, std_ratio=1.0)
     inlier_cloud = pointCloud.select_by_index(ind)
     return inlier_cloud
 
-def cluster_BDscan(point_cloud, min_samples=50, eps=0.2):
+def cluster_DBscan(point_cloud, min_samples=50, eps=0.2):
     """Cluster the point cloud using DBSCAN to divide front from back"""
     xyz = np.asarray(point_cloud.points)
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(xyz)
@@ -206,7 +205,7 @@ def calculate_translation_ICP(pointCloud_frame1, pointCloud_frame2):
        This fucntion asumes that the pointcloud belong to the same cluster in different frames"""
     raise NotImplementedError()
 
-def calculate_bounding_box(pointCloud, color = (0,255,0)):
+def calculate_bounding_box(pointCloud):
     """Calculate the bounding box of the point cloud"""
     return pointCloud.get_axis_aligned_bounding_box()
 
