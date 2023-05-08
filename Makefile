@@ -19,6 +19,9 @@ endif
 pipeline:
 	python3 src/pipeline.py
 
+analyze:
+	python3 src/analyzer.py
+
 segment:
 	python3 notebooks/detection/segmenter.py
 

@@ -49,14 +49,7 @@ def get_frames(frame_num_, seq_dir_):
     )
 
 
-def get_labels_df(seq_dir_):
-    """
-    returns the labels (ground truth data) of the given sequence as a pandas dataframe
-    :param seq_dir_: sequence directory (pathlib.Path)
-    :return: labels dataframe (pd.DataFrame)
-    """
-
-    _labels_file = str(seq_dir_ / "labels.txt")
+def get_df(file):
     headers = [
         "frame",
         "track_id",
@@ -76,7 +69,20 @@ def get_labels_df(seq_dir_):
         "z",
         "yaw",
     ]
-    return pd.read_csv(_labels_file, sep=" ", header=None, names=headers)
+    return pd.read_csv(file, sep=" ", header=None, names=headers)
+
+
+def get_labels_df(seq_dir_, file_override=None):
+    """
+    returns the labels (ground truth data) of the given sequence as a pandas dataframe
+    :param seq_dir_: sequence directory (pathlib.Path)
+    :return: labels dataframe (pd.DataFrame)
+    """
+
+    _labels_file = (
+        str(seq_dir_ / "labels.txt") if file_override is None else file_override
+    )
+    return get_df(_labels_file)
 
 
 def draw_bboxes(frame_, bbox_coords_):
