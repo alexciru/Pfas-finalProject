@@ -88,7 +88,31 @@ def get_df(file):
         "z",
         "yaw",
     ]
-    return pd.read_csv(file, sep=" ", header=None, names=headers)
+    return pd.read_csv(file, sep=" ", header=None, names=headers, index_col=False)
+
+
+def get_our_df(file):
+    headers = [
+        "frame",
+        "track_id",
+        "type",
+        "truncated",
+        "occluded",
+        "alpha",
+        "bbox_left",
+        "bbox_top",
+        "bbox_right",
+        "bbox_bottom",
+        "height",
+        "width",
+        "length",
+        "x",
+        "y",
+        "z",
+        "yaw",
+        "score",
+    ]
+    return pd.read_csv(file, sep=" ", header=None, names=headers, index_col=False)
 
 
 def get_labels_df(seq_dir_, file_override=None):
