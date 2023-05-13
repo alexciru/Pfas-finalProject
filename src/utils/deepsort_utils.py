@@ -90,20 +90,21 @@ LABELS_DICT = {
 }
 UNKNOWN_DEFAULT = "?"
 
+
 @dataclass
-class DeepSortObject():
+class DeepSortObject:
     id: int
     cls: str
-    confidence: float # -1 means occluded
+    confidence: float  # -1 means occluded
     xyxy: List[float]
     mask: np.ndarray
 
     @property
     def label(self):
         return LABELS_DICT.get(self.cls, UNKNOWN_DEFAULT)
-    
+
     @property
-    def occluded(self)->bool: 
+    def occluded(self) -> bool:
         return self.confidence == -1
 
     @property
@@ -118,15 +119,16 @@ class DeepSortObject():
 
     def __repr__(self) -> str:
         return f"DeepSortObject(id={self.id}, cls={self.cls}, label={self.label}, confidence={self.confidence})"
-    
+
     def get_avg_mask(self):
-        """ Return the avg position of the mask in the image"""
+        """Return the avg position of the mask in the image"""
         # calculate moments of binary image
         y, x = np.nonzero(self.mask)
         centroid_x = int(np.mean(x))
         centroid_y = int(np.mean(y))
         return (centroid_x, centroid_y)
-    
+
+
 def resize_masks(masks, orig_shape):
     # rearrange mask dims from (N, H, W) to (H, W, N) for scale_image
     masks = np.moveaxis(masks, 0, -1)
@@ -137,18 +139,69 @@ def resize_masks(masks, orig_shape):
     masks = np.moveaxis(masks, -1, 0)
     return masks
 
+
 def get_closest_prediction(x, y, ds_pred):
-    """ Return the closest prediction to the given x,y coordinate"""
-    
+    """Return the closest prediction to the given x,y coordinate"""
+
 
 def combine_cyclist_clases(cyclist_preds: str, ds_objects: List[DeepSortObject]):
-    """ Combine pedestrian and bikes into cyclist class"""
-    
+    """Combine pedestrian and bikes into cyclist class"""
+
     for c in cyclist_preds:
         x, y = c.get_avg_mask()
         closest = get_closest_prediction(x, y, ds_objects)
-        
 
+
+# writes deepsort tracking id, bounding box, and class to frame
+def disp_track(frame, data, color=None, label_offset=0, expected=None):
+    frame = frame.copy()
+    # TODO (elle): change color of bbox based on track id
+    label = f"{data['track_id']}:{data['type'][:3]}"
+    if expected is not None:
+        label = f"{data['track_id']}/{expected['track_id']}:{data['type'][:3]}/{expected['type']}"
+    # baseline is line where letters sit
+    font_scale = 0.3
+    font_thickness = 1
+    (label_width, label_height), baseline = cv2.getTextSize(
+        label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness
+    )
+    bbox = [
+        data["bbox_left"],
+        data["bbox_top"],
+        data["bbox_right"],
+        data["bbox_bottom"],
+    ]
+    top_left = tuple(
+        map(
+            int,
+            [int(bbox[0]), int(bbox[1]) - (label_height + baseline + label_offset)],
+        )
+    )
+    top_right = tuple(map(int, [int(bbox[0]) + label_width, int(bbox[1])]))
+    org = tuple(map(int, [int(bbox[0]), int(bbox[1]) - baseline]))
+    default_color = (255, 0, 0)
+    # bounding box
+    bbox_color = default_color if color is None else color
+    cv2.rectangle(
+        frame,
+        (int(bbox[0]), int(bbox[1])),
+        (int(bbox[2]), int(bbox[3])),
+        bbox_color,
+        1,
+    )
+    # label
+    label_color = default_color if color is None else color
+    cv2.rectangle(frame, top_left, top_right, label_color, -1)
+    cv2.putText(
+        frame,
+        label,
+        org,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        font_scale,
+        (255, 255, 255),
+        font_thickness,
+    )
+    return frame
 
 
 if __name__ == "__main__":
