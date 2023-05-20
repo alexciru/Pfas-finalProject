@@ -19,7 +19,9 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 
-import requests
+import json
+
+RESULTS_WRITE_PATH = ROOT_DIR / "src/analysis_results.json"
 
 
 def find_match(obj, other_objs):
@@ -53,74 +55,6 @@ def threeD_err(obj, gt_obj):
     obj_center = np.array([obj["x"], obj["y"], obj["z"]])
     gt_obj_center = np.array([gt_obj["x"], gt_obj["y"], gt_obj["z"]])
     return np.linalg.norm(obj_center - gt_obj_center)
-
-
-def update_data(
-    fig,
-    ground_truth2deep_sort,
-    marker_data_pred,
-    marker_data_expected,
-    expected_x,
-    expected_y,
-    predicted_x,
-    predicted_y,
-):
-    for frame_idx, frame_path in enumerate(frame_paths):
-        if frame_idx < len(ground_truth2deep_sort):
-            path = str(frame_path)
-            frame = cv2.imread(path)
-            frame_gt = frame.copy()
-            frame_ds = frame.copy()
-            if frame is None:
-                print(f"image not found at {path}")
-                exit(1)
-            gt_maps = ground_truth2deep_sort[frame_idx]
-            if GT_ID_OF_INTEREST in gt_maps:
-                data = gt_maps[GT_ID_OF_INTEREST]
-                maps_of_interest.append(data)
-                gt_obj = data["gt_obj"]
-                expected_x = np.append(expected_x, float(gt_obj["x"]))
-                expected_y = np.append(expected_y, float(gt_obj["y"]))
-                ds_obj = data["ds_obj"]
-                err = data["err"]
-                ds_cls = ds_obj["type"] if ds_obj is not None else "None"
-                gt_cls = gt_obj["type"]
-                ds_id = ds_obj["track_id"] if ds_obj is not None else "None"
-                gt_id = gt_obj["track_id"]
-                if ds_obj is not None:
-                    frame_ds = disp_track(frame, ds_obj)
-                    predicted_x = np.append(predicted_x, float(ds_obj["x"]))
-                    predicted_y = np.append(predicted_y, float(ds_obj["y"]))
-                else:
-                    predicted_x = np.append(predicted_x, np.nan)
-                    predicted_y = np.append(predicted_y, np.nan)
-                frame_gt = disp_track(frame, gt_obj)
-                print(
-                    f"frame: {frame_idx}, {gt_id}->{ds_id}, {gt_cls}->{ds_cls}, err: {err}"
-                )
-            else:
-                expected_x = np.append(expected_x, np.nan)
-                predicted_x = np.append(predicted_x, np.nan)
-                expected_y = np.append(expected_y, np.nan)
-                predicted_y = np.append(predicted_y, np.nan)
-
-            # update traces in plotly
-            marker_data_pred.x = time
-            marker_data_pred.y = predicted_x
-            marker_data_pred.z = predicted_y
-            marker_data_expected.x = time
-            marker_data_expected.y = expected_x
-            marker_data_expected.z = expected_y
-            fig.update_traces(marker_data_pred, selector=dict(name="predicted"))
-            fig.update_traces(marker_data_expected, selector=dict(name="expected"))
-
-            #### SHOW RESULTS
-            frame = np.concatenate((frame_ds, frame_gt), axis=0)
-            cv2.imshow("Deepsort", frame)
-            # break the loop if 'q' is pressed
-            if cv2.waitKey(0) & 0xFF == ord("q"):
-                break  ############ PLOT RESULTS
-    # start the dash server
 
 
 if __name__ == "__main__":
@@ -218,34 +152,6 @@ if __name__ == "__main__":
     maps_of_interest = []
 
     # SANITY CHECK
-    # create the initial plot
-    # expected_x = np.array([])
-    # predicted_x = np.array([])
-    # expected_y = np.array([])
-    # predicted_y = np.array([])
-
-    # marker_data_pred = go.Scatter3d(
-    #     x=time,
-    #     y=predicted_x,
-    #     z=predicted_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="red",
-    # )
-    # marker_data_expected = go.Scatter3d(
-    #     x=time,
-    #     y=expected_x,
-    #     z=expected_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="blue",
-    # )
-    # marker_data_pred.name = "predicted"
-    # marker_data_expected.name = "expected"
-    # fig = go.Figure(data=[marker_data_pred, marker_data_expected])
-    # fig.update_layout(scene=dict(xaxis_title="time", yaxis_title="x", zaxis_title="y"))
-
-    # # update the data and start the server
     print("starting server")
 
     expected_x = np.array([])
@@ -253,32 +159,6 @@ if __name__ == "__main__":
     expected_y = np.array([])
     predicted_y = np.array([])
 
-    # marker_data_pred = go.Scatter3d(
-    #     x=time,
-    #     y=predicted_x,
-    #     z=predicted_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="red",
-    # )
-    # marker_data_expected = go.Scatter3d(
-    #     x=time,
-    #     y=expected_x,
-    #     z=expected_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="blue",
-    # )
-    # # set trace names
-    # marker_data_pred.name = "predicted"
-    # marker_data_expected.name = "expected"
-    # # fig = go.Figure(data=marker_data_expected)
-    # fig = go.Figure(data=[marker_data_pred, marker_data_expected])
-    # fig.update_layout(scene=dict(xaxis_title="time", yaxis_title="x", zaxis_title="y"))
-    # app = dash.Dash()
-    # app.layout = html.Div([dcc.Graph(figure=fig)])
-    # app.run_server(debug=True, use_reloader=False)
-    url = "http://localhost:8050/live-update-graph-scatter"
     for frame_idx, frame_path in enumerate(frame_paths):
         if frame_idx < len(ground_truth2deep_sort):
             path = str(frame_path)
@@ -318,101 +198,19 @@ if __name__ == "__main__":
                 expected_y = np.append(expected_y, np.nan)
                 predicted_y = np.append(predicted_y, np.nan)
 
-            post_data = {
-                "expected_x": expected_x,
-                "expected_y": expected_y,
-                "predicted_x": predicted_x,
-                "predicted_y": predicted_y,
-                "time": time,
+            data = {
+                "expected_x": expected_x.tolist(),
+                "expected_y": expected_y.tolist(),
+                "predicted_x": predicted_x.tolist(),
+                "predicted_y": predicted_y.tolist(),
             }
-            r = requests.post(url, data=post_data)
-            # print result of request
-            print(r)
-            print(r.text)
-
-            #         # update traces in plotly
-            #         marker_data_pred.x = time
-            #         marker_data_pred.y = predicted_x
-            #         marker_data_pred.z = predicted_y
-            #         marker_data_expected.x = time
-            #         marker_data_expected.y = expected_x
-            #         marker_data_expected.z = expected_y
-            #         fig.update_traces(marker_data_pred, selector=dict(name="predicted"))
-            #         fig.update_traces(marker_data_expected, selector=dict(name="expected"))
-
-            #         #### SHOW RESULTS
+            with open(RESULTS_WRITE_PATH, "w") as f:
+                json.dump(
+                    data,
+                    f,
+                )
             frame = np.concatenate((frame_ds, frame_gt), axis=0)
             cv2.imshow("Deepsort", frame)
             # break the loop if 'q' is pressed
             if cv2.waitKey(0) & 0xFF == ord("q"):
                 break  ############ PLOT RESULTS
-
-    # marker_data_pred = go.Scatter3d(
-    #     x=time,
-    #     y=predicted_x,
-    #     z=predicted_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="red",
-    # )
-    # marker_data_expected = go.Scatter3d(
-    #     x=time,
-    #     y=expected_x,
-    #     z=expected_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="blue",
-    # )
-    # # set trace names
-    # marker_data_pred.name = "predicted"
-    # marker_data_expected.name = "expected"
-    # # fig = go.Figure(data=marker_data_expected)
-    # fig = go.Figure(data=[marker_data_pred, marker_data_expected])
-    # fig.update_layout(
-    #     scene=dict(xaxis_title="time", yaxis_title="x", zaxis_title="y")
-    # )
-    # exist = []
-    # fig.for_each_trace(lambda t: exist.append(t.name))
-    # print(exist)
-    # exit(0)
-
-    for frame in time:
-        gt_maps = ground_truth2deep_sort[frame]
-        if GT_ID_OF_INTEREST in gt_maps:
-            gt_obj = gt_maps[GT_ID_OF_INTEREST]["gt_obj"]
-            expected_x = np.append(expected_x, float(gt_obj["x"]))
-            expected_y = np.append(expected_y, float(gt_obj["y"]))
-            if gt_maps[GT_ID_OF_INTEREST]["ds_obj"] is not None:
-                ds_obj = gt_maps[GT_ID_OF_INTEREST]["ds_obj"]
-                predicted_x = np.append(predicted_x, float(ds_obj["x"]))
-                predicted_y = np.append(predicted_y, float(ds_obj["y"]))
-            else:
-                predicted_x = np.append(predicted_x, np.nan)
-                predicted_y = np.append(predicted_y, np.nan)
-        else:
-            expected_x = np.append(expected_x, np.nan)
-            predicted_x = np.append(predicted_x, np.nan)
-            expected_y = np.append(expected_y, np.nan)
-            predicted_y = np.append(predicted_y, np.nan)
-
-    # do a 3D plotly plot of the predicted['x'], predicted['y'], time and actual['x'], actual['y'], time
-    # marker_data_pred = go.Scatter3d(
-    #     x=time,
-    #     y=predicted_x,
-    #     z=predicted_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="red",
-    # )
-    # marker_data_expected = go.Scatter3d(
-    #     x=time,
-    #     y=expected_x,
-    #     z=expected_y,
-    #     marker=go.scatter3d.Marker(size=2),
-    #     mode="markers",
-    #     marker_color="blue",
-    # )
-    # # fig = go.Figure(data=marker_data_expected)
-    # fig = go.Figure(data=[marker_data_pred, marker_data_expected])
-    # fig.update_layout(scene=dict(xaxis_title="time", yaxis_title="x", zaxis_title="y"))
-    # fig.show()

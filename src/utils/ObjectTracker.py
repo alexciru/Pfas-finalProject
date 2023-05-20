@@ -6,11 +6,14 @@ import numpy as np
 
 from typing import Dict, List
 
-class ObjectTracker():
-    def __init__(self):
-        self.objects_in_time: Dict[int, Dict] = dict()  # time -> trajectory:= dict of obj.id -> np.ndarray of shape (3)
 
-    def update_position(self, time_:int, obj_key_:int, position_:np.ndarray):
+class ObjectTracker:
+    def __init__(self):
+        self.objects_in_time: Dict[
+            int, Dict
+        ] = dict()  # time -> trajectory:= dict of obj.id -> np.ndarray of shape (3)
+
+    def update_position(self, time_: int, obj_key_: int, position_: np.ndarray):
         """
         Registers the position of the object at time_
         args:
@@ -26,7 +29,7 @@ class ObjectTracker():
         else:
             self.objects_in_time[time_] = {obj_key_: position_}
 
-    def predict_position(self, obj_key_:int, time_:int) -> np.ndarray:
+    def predict_position(self, obj_key_: int, time_: int) -> np.ndarray:
         """
         Predicts the position of the object at before_time_ + 1
         args:
@@ -34,29 +37,30 @@ class ObjectTracker():
             time_: int      -- time step
         """
         try:
-            p1 = self.objects_in_time[time_-1][obj_key_]
+            p1 = self.objects_in_time[time_ - 1][obj_key_]
             p2 = self.objects_in_time[time_ - 2][obj_key_]
             dx = p1 - p2
-            return self.objects_in_time[time_-1][obj_key_] + dx
+            return self.objects_in_time[time_ - 1][obj_key_] + dx
             # dx = self.objects_in_time[time_-1][obj_key_] - self.objects_in_time[time_ - 2][obj_key_]
         except Exception as e:
-            print("Not possible to predict position of object with id: {} at time: {}".format(obj_key_, time_))
+            print(
+                "Not possible to predict position of object with id: {} at time: {}".format(
+                    obj_key_, time_
+                )
+            )
             return None
-        
-    
-    def get_object_trajectory(self, obj_key_:int) -> List[np.ndarray]:
+
+    def get_object_trajectory(self, obj_key_: int) -> List[np.ndarray]:
         """
-            Return a list of positions of the object with obj_key_ given
-            in the case of the object not having a registered position at a given time step,
-            the position is None.
+        Return a list of positions of the object with obj_key_ given
+        in the case of the object not having a registered position at a given time step,
+        the position is None.
         """
-        return [self.objects_in_time[time_].get(obj_key_, None) for time_ in self.objects_in_time.keys()]
+        return [
+            self.objects_in_time[time_].get(obj_key_, None)
+            for time_ in self.objects_in_time.keys()
+        ]
 
 
-
-
-
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass

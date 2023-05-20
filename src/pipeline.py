@@ -29,7 +29,8 @@ from utils.utils import (
     SEQ_02,
     SEQ_03,
     get_frames,
-    get_all_frames)
+    get_all_frames,
+)
 
 from utils.ObjectTracker import ObjectTracker
 from utils.deepsort_utils import (
@@ -37,7 +38,7 @@ from utils.deepsort_utils import (
     UNKNOWN_DEFAULT,
     DeepSortObject,
     resize_masks,
-    )
+)
 
 
 def get_tracking_devices(yolo_model_: Path, deepsort_model_: Path):
@@ -57,11 +58,22 @@ def get_tracking_devices(yolo_model_: Path, deepsort_model_: Path):
     return encoder, tracker, detector
 
 
-def get_track_objects(encoder_:np.ndarray, tracker_:Tracker, detector_:YOLO, frame_l_:np.ndarray, frame_t:int, first_frame_:int) -> Dict[int, DeepSortObject]:
+def get_track_objects(
+    encoder_: np.ndarray,
+    tracker_: Tracker,
+    detector_: YOLO,
+    frame_l_: np.ndarray,
+    frame_t: int,
+    first_frame_: int,
+) -> Dict[int, DeepSortObject]:
     print("Detecting objects")
-    _results_t = detector_.predict(frame_l_, classes=[0, 2])  # Output: List of objects (one per detection in frame)
+    _results_t = detector_.predict(
+        frame_l_, classes=[0, 2]
+    )  # Output: List of objects (one per detection in frame)
     _results_t = _results_t[0]
-    _masks_t = resize_masks(masks=_results_t.masks.data.numpy(), orig_shape=_results_t.masks.orig_shape)
+    _masks_t = resize_masks(
+        masks=_results_t.masks.data.numpy(), orig_shape=_results_t.masks.orig_shape
+    )
 
     if not _results_t:
         return None
@@ -159,12 +171,16 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
     FRAMES = get_all_frames(seq_dir_=seq_)
 
     # disparity map and 3d reconstruction variables
-    MIN_PCD_SIZE = (1000)  # minimum number of points in a pointcloud to be considered valid
+    MIN_PCD_SIZE = (
+        1000  # minimum number of points in a pointcloud to be considered valid
+    )
 
     Q = depth_est.get_Q_matrix(
         FRAMES[0][0].shape[:2], DATA_DIR / "calib_cam_to_cam.txt"
     )
-    CAM_MAT_L, CAM_MAT_R = depth_est.get_cam_matrices(DATA_DIR / "calib_cam_to_cam.txt")[9:11]
+    CAM_MAT_L, CAM_MAT_R = depth_est.get_cam_matrices(
+        DATA_DIR / "calib_cam_to_cam.txt"
+    )[9:11]
 
     # dynamic variables
     object_tracker = ObjectTracker()
@@ -187,7 +203,14 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
         # ds_objects are represents the status in frame t of the tracked objects.
         # If an object detected in t'<t and not in t, it is occluded and will have a confidence of -1 and the .occluded property will be True
 
-        ds_objs_t = get_track_objects(encoder_=encoder, tracker_=ds_tracker, detector_=ds_detector, frame_l_=_frame_l_t, frame_t=_frame_t, first_frame_= begin_frame_)
+        ds_objs_t = get_track_objects(
+            encoder_=encoder,
+            tracker_=ds_tracker,
+            detector_=ds_detector,
+            frame_l_=_frame_l_t,
+            frame_t=_frame_t,
+            first_frame_=begin_frame_,
+        )
 
         if ds_objs_t is None:
             print(f"No objects detected in frame {_frame_t}")
@@ -197,47 +220,76 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
 
         disparity_frame, __ = depth_est.semiGlobalMatchMap(_frame_l_t, _frame_r_t)
 
-        _pointclouds_t = dict()  # key: object id, value: pointcloud of object #TODO: implement this logic, and deprecate the _objs_to_reconstruct_t list
+        _pointclouds_t = (
+            dict()
+        )  # key: object id, value: pointcloud of object #TODO: implement this logic, and deprecate the _objs_to_reconstruct_t list
         if _frame_t == begin_frame_:
             for _obj_id, _obj in ds_objs_t.items():
-                _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_obj.mask], Q, MIN_PCD_SIZE)
+                _possible_pc = depth_reg.pointclouds_from_masks(
+                    disparity_frame, _frame_l_t, [_obj.mask], Q, MIN_PCD_SIZE
+                )
                 if _possible_pc:
-                    print(f"Frame {_frame_t} | adding object {_obj} to  3D reconstruction")
+                    print(
+                        f"Frame {_frame_t} | adding object {_obj} to  3D reconstruction"
+                    )
                     _pointclouds_t[_obj_id] = _possible_pc[0]
 
         else:
             for _past_obj_id in lastFrameIds:
                 # object position estimation
-                if (_past_obj_id in ds_objs_t.keys()):  # object in last frame is in current frame
+                if (
+                    _past_obj_id in ds_objs_t.keys()
+                ):  # object in last frame is in current frame
                     _ds_obj_t = ds_objs_t.get(_past_obj_id)
-                    results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected in frame: {ds_objs_t.keys()}")
+                    results.log_info(
+                        LOG_FILENAME,
+                        f"Frame {_frame_t} | objects detected in frame: {ds_objs_t.keys()}",
+                    )
 
-                    _possible_pc = depth_reg.pointclouds_from_masks(disparity_frame, _frame_l_t, [_ds_obj_t.mask], Q, MIN_PCD_SIZE)
+                    _possible_pc = depth_reg.pointclouds_from_masks(
+                        disparity_frame, _frame_l_t, [_ds_obj_t.mask], Q, MIN_PCD_SIZE
+                    )
                     if _possible_pc:
-                        print(f"Frame {_frame_t} | adding object {_ds_obj_t} to  3D reconstruction")
+                        print(
+                            f"Frame {_frame_t} | adding object {_ds_obj_t} to  3D reconstruction"
+                        )
                         _pointclouds_t[_ds_obj_t.id] = _possible_pc[0]
                     else:
-                        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_ds_obj_t.id} not added to 3D reconstruction")
+                        results.log_info(
+                            LOG_FILENAME,
+                            f"Frame {_frame_t} | object {_ds_obj_t.id} not added to 3D reconstruction",
+                        )
 
-                else: # object in last frame is not in current frame (OCCLUSION)
+                else:  # object in last frame is not in current frame (OCCLUSION)
                     # kinematics estimation
 
                     _pos_obj_t = object_tracker.predict_position(_past_obj_id, _frame_t)
-                    if(_pos_obj_t != None):
-                        #_p_image = project_to_image(_pos_obj_t, CAM_MAT_L[:,:3]) # we only care for the rotation.
-                        _p_image =  CAM_MAT_L[:,:3] @ _pos_obj_t
+                    if _pos_obj_t != None:
+                        # _p_image = project_to_image(_pos_obj_t, CAM_MAT_L[:,:3]) # we only care for the rotation.
+                        _p_image = CAM_MAT_L[:, :3] @ _pos_obj_t
                         _p_image /= _p_image[2]
                         point_2d = _p_image[:2]
                         # if _p_image in closer to the frame the do not add it to the reconstruction
                         FRAME_FENCE = 10
-                        if point_2d[0] < FRAME_FENCE or point_2d[0] > _frame_l_t.shape[1]-FRAME_FENCE or point_2d[1] < FRAME_FENCE or point_2d[1] > _frame_l_t.shape[0]- FRAME_FENCE:
-                            print(f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
-                            results.log_info(LOG_FILENAME, f"Frame {_frame_t} | object {_past_obj_id} is out of the frame")
+                        if (
+                            point_2d[0] < FRAME_FENCE
+                            or point_2d[0] > _frame_l_t.shape[1] - FRAME_FENCE
+                            or point_2d[1] < FRAME_FENCE
+                            or point_2d[1] > _frame_l_t.shape[0] - FRAME_FENCE
+                        ):
+                            print(
+                                f"Frame {_frame_t} | object {_past_obj_id} is out of the frame"
+                            )
+                            results.log_info(
+                                LOG_FILENAME,
+                                f"Frame {_frame_t} | object {_past_obj_id} is out of the frame",
+                            )
                             continue
-                        object_tracker.update_position(time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t)
-        
+                        object_tracker.update_position(
+                            time_=_frame_t, obj_key_=_past_obj_id, position_=_pos_obj_t
+                        )
 
-        #o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
+        # o3d.visualization.draw_geometries(list(_pointclouds_t.values()), window_name=f"Frame {_frame_t}")
 
         # QUESTION: Should this update of last objects happen also starting from frame 0?
         deleted_ids = lastFrameIds - set(ds_objs_t.keys())
@@ -257,15 +309,24 @@ def main(seq_: Path, begin_frame_: int = 0, end_frame_: int = 144):
             # raise NotImplementedError("3D tracking not implemented yet")
             print(f"[3D TRACKED OBJECTS IN POINTCLOUD: {len(_pointclouds_t)}")
             _obj_central_position = np.mean(np.asarray(_obj_pcd.points), axis=0)
-            object_tracker.update_position(time_=_frame_t, obj_key_=_ds_obj_t, position_=_obj_central_position)
+            object_tracker.update_position(
+                time_=_frame_t, obj_key_=_ds_obj_t, position_=_obj_central_position
+            )
 
-        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects tracked in frame {object_tracker.objects_in_time[_frame_t].keys()}")
+        results.log_info(
+            LOG_FILENAME,
+            f"Frame {_frame_t} | objects tracked in frame {object_tracker.objects_in_time[_frame_t].keys()}",
+        )
         lastFrameIds = set(ds_objs_t.keys())
-        results.log_info(LOG_FILENAME, f"Frame {_frame_t} | objects detected in last frame: {lastFrameIds}")
-    
-        # save results for time t to results.txt file
-        results.new_save_timeframe_results(_frame_t, object_tracker, ds_objs_t, _pointclouds_t, RESULTS_FILENAME)
+        results.log_info(
+            LOG_FILENAME,
+            f"Frame {_frame_t} | objects detected in last frame: {lastFrameIds}",
+        )
 
+        # save results for time t to results.txt file
+        results.new_save_timeframe_results(
+            _frame_t, object_tracker, ds_objs_t, _pointclouds_t, RESULTS_FILENAME
+        )
 
     return
 
